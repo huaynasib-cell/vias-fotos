@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>VÍAS Cámara</title>
+<link rel="stylesheet" href="lib/fuente/400.css">
+<link rel="stylesheet" href="lib/fuente/600.css">
+<link rel="stylesheet" href="lib/fuente/700.css">
+<link rel="stylesheet" href="lib/fuente/800.css">
+<link rel="stylesheet" href="lib/leaflet/leaflet.css">
+<script src="lib/leaflet/leaflet.js"></script>
+<script src="lib/xlsx.full.min.js"></script>
+<style>
+@font-face{font-family:'Sello';font-style:italic;font-weight:400;src:url(lib/fuente/files/source-sans-3-latin-400-italic.woff2) format('woff2');}
+:root{--rojo:#d0182a;--ok:#2ecc71;--med:#f5a623;--panel:#16191e;--panel2:#22262d;--borde:#343a43;--txt:#f1f3f5;--suave:#9aa4b0}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#000;color:var(--txt);font-family:"Source Sans 3",system-ui,sans-serif;font-variant-numeric:tabular-nums;overflow:hidden}
+button,input,select,textarea{font-family:inherit;font-size:16px}
+.oculto{display:none!important}
+/* ---------- cámara ---------- */
+#vid{position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
+#marco{position:fixed;pointer-events:none}
+#sello{position:absolute;right:2.5%;bottom:3%;text-align:right;color:#fff;font-family:'Sello','Source Sans 3',sans-serif;font-style:italic;font-weight:400;line-height:1.2;text-shadow:0 1px 3px #000,0 0 2px #000,0 0 7px rgba(0,0,0,.8);max-width:95%}
+#lgo{position:absolute;right:2.5%;top:3%;max-width:22%;max-height:24%}
+#marca{position:absolute;right:2.5%;top:3%;background:rgba(208,24,42,.9);color:#fff;font-weight:800;font-size:12px;padding:2px 7px;border-radius:3px}
+#flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .3s;z-index:5}
+#flash.ver{opacity:.9;transition:none}
+.top{position:fixed;left:0;right:0;top:0;z-index:6;display:flex;align-items:flex-start;gap:8px;padding:calc(10px + env(safe-area-inset-top)) 10px 24px;background:linear-gradient(rgba(0,0,0,.6),transparent)}
+#pill{flex:1;min-width:0;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.25);border-radius:14px;padding:6px 12px;cursor:pointer}
+#pProg{font-size:30px;font-weight:800;line-height:1.05;white-space:nowrap}
+#pProg.ok{color:#7dffb0}#pProg.med{color:#ffd27a}#pProg.mal{color:#ff8a8a}
+#pSub{font-size:13px;font-weight:600;color:#dde3ea;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.redondo{width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.5);color:#fff;font-size:21px;cursor:pointer;flex:none;display:flex;align-items:center;justify-content:center}
+.bottom{position:fixed;left:0;right:0;bottom:0;z-index:6;padding:30px 16px calc(18px + env(safe-area-inset-bottom));background:linear-gradient(transparent,rgba(0,0,0,.7))}
+.chip{display:block;margin:0 auto 14px;max-width:80%;background:rgba(0,0,0,.55);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:20px;padding:8px 14px;font-weight:700;text-align:center}
+.fila3{display:flex;align-items:center;justify-content:space-between}
+#ult{width:54px;height:54px;border-radius:10px;border:2px solid #fff;background:#222 center/cover no-repeat;cursor:pointer;position:relative}
+#ult span{position:absolute;right:-8px;top:-8px;background:var(--rojo);color:#fff;font-size:12px;font-weight:800;border-radius:10px;padding:1px 6px}
+#disp{width:78px;height:78px;border-radius:50%;border:5px solid #fff;background:var(--rojo);cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.6)}
+#disp:active{transform:scale(.9)}
+#avisoCam{position:fixed;left:12px;right:12px;top:calc(96px + env(safe-area-inset-top));z-index:6;background:rgba(245,166,35,.92);color:#2a1a00;font-weight:700;font-size:14px;padding:8px 12px;border-radius:10px;text-align:center}
+#bienv{position:fixed;left:16px;right:16px;top:50%;transform:translateY(-50%);z-index:7;background:rgba(22,25,30,.96);border:1px solid var(--borde);border-radius:16px;padding:20px;text-align:center}
+#bienv h2{margin:0 0 6px;font-size:22px}
+#bienv p{margin:0 0 14px;color:#cfd6de}
+/* ---------- paneles ---------- */
+.panel{position:fixed;inset:0;z-index:20;background:var(--panel);display:flex;flex-direction:column}
+.cab{display:flex;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;background:#0d0f12;border-bottom:1px solid var(--borde)}
+.cab h1{flex:1;margin:0;font-size:19px;font-weight:800}
+.cab button{background:none;border:0;color:#fff;font-size:24px;width:40px;height:40px;cursor:pointer}
+.cuerpo{flex:1;overflow:auto;padding:14px 14px calc(30px + env(safe-area-inset-bottom))}
+.card{background:var(--panel2);border:1px solid var(--borde);border-radius:12px;padding:14px;margin-bottom:14px}
+.card h3{margin:0 0 10px;font-size:16px}
+label{display:block;font-size:13px;font-weight:600;color:var(--suave);margin-bottom:10px}
+input,select,textarea{display:block;width:100%;margin-top:4px;background:#0f1215;color:var(--txt);border:1px solid var(--borde);border-radius:8px;padding:10px}
+textarea{font-size:14px}
+.btn{display:block;width:100%;text-align:center;border:1px solid var(--borde);background:#2c323a;color:#fff;padding:12px;border-radius:10px;font-weight:700;cursor:pointer;margin-top:8px}
+.btn.prim{background:var(--rojo);border-color:var(--rojo)}
+.btn:disabled{opacity:.5}
+.dos{display:flex;gap:8px}.dos>*{flex:1}
+.nota{font-size:13px;color:var(--suave);margin:6px 0 0}
+.ok{color:var(--ok);font-weight:700}.adv{color:var(--med);font-weight:700}
+.barra{height:12px;background:#0f1215;border-radius:6px;overflow:hidden;margin:10px 0 4px}
+.barra div{height:100%;width:0;background:var(--rojo);transition:width .2s}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+td,th{border-bottom:1px solid var(--borde);padding:5px 4px;text-align:left}
+#logoPrev{max-height:60px;max-width:150px;background:#888;border-radius:6px;margin:4px 0}
+/* mapa */
+#mapa{flex:1;background:#2a3036}
+.mBtns{position:absolute;right:12px;bottom:calc(90px + env(safe-area-inset-bottom));z-index:500;display:flex;flex-direction:column;gap:10px}
+.kmEtq{background:#fff;color:#c0101f;border:2px solid #c0101f;border-radius:3px;font-weight:800;font-size:11px;padding:0 3px;white-space:nowrap;font-family:"Source Sans 3",sans-serif}
+.mInfo{position:absolute;left:12px;top:calc(72px + env(safe-area-inset-top));z-index:500;background:rgba(0,0,0,.75);border-radius:10px;padding:6px 12px;font-weight:800;font-size:22px}
+.mInfo small{display:block;font-size:12px;font-weight:600}
+/* galería */
+.grilla{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.grilla div{position:relative;aspect-ratio:1;background:#222 center/cover no-repeat;border-radius:4px;cursor:pointer}
+.grilla div span{position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);font-size:11px;font-weight:700;padding:2px 4px}
+#visor{position:fixed;inset:0;z-index:30;background:#000;display:flex;flex-direction:column}
+#visor img{flex:1;min-height:0;object-fit:contain;width:100%}
+#visorTxt{padding:12px 14px calc(14px + env(safe-area-inset-bottom));font-size:14px;background:#0d0f12}
+#toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);background:rgba(20,20,20,.92);color:#fff;padding:10px 16px;border-radius:20px;font-weight:700;z-index:50;max-width:90vw;text-align:center;opacity:0;transition:opacity .25s;pointer-events:none}
+#toast.ver{opacity:1}#toast.error{background:var(--rojo)}
+</style>
+</head>
+<body>
+
+<!-- ================= CÁMARA (pantalla principal) ================= -->
+<video id="vid" playsinline autoplay muted></video>
+<div id="marco"><img id="lgo" class="oculto" alt=""><span id="marca">VÍAS</span><div id="sello"></div></div>
+<div id="flash"></div>
+<div class="top">
+  <div id="pill" onclick="abrir('pMapa')"><div id="pProg">—</div><div id="pSub">Buscando GPS…</div></div>
+  <button class="redondo" onclick="girar()" title="Cambiar cámara">⟲</button>
+  <button class="redondo" onclick="abrir('pAjustes')" title="Ajustes">⚙</button>
+</div>
+<div id="avisoCam" class="oculto"></div>
+<div class="bottom">
+  <select id="capa" class="chip" onchange="guardarCapa(this.value)"></select>
+  <div class="fila3">
+    <div id="ult" onclick="abrir('pGal')"></div>
+    <button id="disp" onclick="disparar()" aria-label="Tomar foto"></button>
+    <button class="redondo" onclick="abrir('pMapa')" title="Mapa">🗺</button>
+  </div>
+</div>
+<div id="bienv" class="oculto">
+  <h2>📷 Lista para usar</h2>
+  <p>Ya puede tomar fotos con fecha y coordenadas.<br>Para que salgan la <b>progresiva</b> y la <b>cota</b>, cargue el eje de su carretera (Excel del plano).</p>
+  <button class="btn prim" onclick="abrir('pAjustes');nuevaVia()">Cargar eje de la carretera</button>
+  <button class="btn" onclick="cerrarBienv()">Ahora no</button>
+</div>
+
+<!-- ================= AJUSTES ================= -->
+<div id="pAjustes" class="panel oculto">
+  <div class="cab"><button onclick="cerrar('pAjustes')">✕</button><h1>Ajustes</h1></div>
+  <div class="cuerpo">
+    <div class="card">
+      <h3>🛣 Carretera</h3>
+      <select id="sVia" onchange="elegirVia(this.value)"></select>
+      <div id="viaInfo" class="nota"></div>
+      <div class="dos"><button class="btn prim" onclick="nuevaVia()">＋ Cargar eje</button><button class="btn" id="bBorrarVia" onclick="borrarVia()">🗑 Borrar</button></div>
+    </div>
+
+    <div class="card oculto" id="fVia">
+      <h3>Cargar eje (coordenadas y cotas del plano)</h3>
+      <label>Nombre de la carretera<input id="vNom" placeholder="Ej.: Carretera Jila Purina"></label>
+      <label>Zona UTM (Sur)<select id="vZona"><option value="17">17 S</option><option value="18">18 S</option><option value="19">19 S</option></select></label>
+      <label>Archivo del eje (Excel o CSV con Progresiva, Este, Norte, Cota)
+        <input type="file" id="vArch" accept=".xlsx,.xls,.csv,.txt" onchange="leerArchivo(this)"></label>
+      <label>…o pegue aquí las columnas copiadas del Excel
+        <textarea id="vTxt" rows="5" oninput="previsualizar()" placeholder="0+000  363500.000  8349700.000  3840.000&#10;0+020  363512.000  8349716.000  3840.400"></textarea></label>
+      <div id="vPrev" class="nota"></div>
+      <div class="dos"><button class="btn" onclick="ocultar('fVia')">Cancelar</button><button class="btn prim" id="bGuardar" onclick="guardarVia()">Guardar</button></div>
+    </div>
+
+    <div class="card">
+      <h3>🗺 Mapa sin señal</h3>
+      <div id="mapaEstado" class="nota">—</div>
+      <label style="margin-top:10px">Detalle<select id="dZoom"><option value="16">Medio (liviano)</option><option value="17" selected>Alto (recomendado)</option><option value="18">Muy alto (pesado)</option></select></label>
+      <div id="dProg" class="oculto"><div class="barra"><div id="dBarra"></div></div><div id="dTxt" class="nota"></div></div>
+      <button class="btn prim" id="bDesc" onclick="descargarMapa()">⬇ Descargar mapa de esta carretera</button>
+      <button class="btn oculto" id="bCanc" onclick="cancelarMapa()">Cancelar descarga</button>
+      <p class="nota">Hágalo con wifi antes de ir a campo. Baja una franja de 300 m a cada lado del eje.</p>
+    </div>
+
+    <div class="card">
+      <h3>🏷 Sello de la foto</h3>
+      <label>Logo (arriba a la derecha)<input type="file" id="aLogo" accept="image/*" onchange="cargarLogo(this)"></label>
+      <img id="logoPrev" class="oculto" alt=""><button class="btn oculto" id="bQuitarLogo" onclick="quitarLogo()">Quitar logo</button>
+      <label>Lugar<input id="aLugar" placeholder="Ej.: Azángaro" onchange="ajuste('lugar',this.value)"></label>
+      <label>Línea adicional<input id="aExtra" placeholder="Ej.: SUPERVISION" onchange="ajuste('extra',this.value)"></label>
+      <label>Proyecto<input id="aProy" placeholder="Ej.: MEJORAMIENTO JILA PURINA (vacío = nombre de la carretera)" onchange="ajuste('proy',this.value)"></label>
+      <label>Tamaño de letra<select id="aTam" onchange="ajuste('tam',this.value)"><option value="0.8">Pequeño</option><option value="1">Normal</option><option value="1.25">Grande</option><option value="1.5">Muy grande</option></select></label>
+      <label>Partidas / capas (una por línea)<textarea id="aCapas" rows="6" onchange="guardarCapas(this.value)"></textarea></label>
+    </div>
+    <p class="nota" style="text-align:center">Las fotos se guardan en la galería del celular, álbum <b>VIAS Fotos</b>.</p>
+  </div>
+</div>
+
+<!-- ================= MAPA ================= -->
+<div id="pMapa" class="panel oculto">
+  <div class="cab"><button onclick="cerrar('pMapa')">✕</button><h1>Mapa</h1></div>
+  <div id="mapa"></div>
+  <div class="mInfo" id="mInfo">—<small></small></div>
+  <div class="mBtns">
+    <button class="redondo" onclick="centrar()" title="Mi posición">⌖</button>
+    <button class="redondo" onclick="cambiarCapaMapa()" id="bCapaM" title="Satélite / calles">🛰</button>
+  </div>
+</div>
+
+<!-- ================= GALERÍA ================= -->
+<div id="pGal" class="panel oculto">
+  <div class="cab"><button onclick="cerrar('pGal')">✕</button><h1>Fotos</h1><button onclick="excel()" title="Exportar a Excel" style="font-size:15px;width:auto;font-weight:800">⬇ Excel</button></div>
+  <div class="cuerpo"><div id="galInfo" class="nota" style="margin:0 0 10px"></div><div id="grilla" class="grilla"></div></div>
+</div>
+<div id="visor" class="oculto" onclick="ocultar('visor')"><img id="visorImg" alt=""><div id="visorTxt"></div></div>
+
+<div id="toast"></div>
+
+<script>
+/* ======================= ESTADO ======================= */
+var S = { vias: [], via: null, eje: [], ejeLL: [], fix: null, ult: null, cam: null, frente: false, logo: null,
+          fotos: [], mapa: null, capaM: 'sat', descarga: null, panel: null };
+var CAPAS0 = ['Terraplén', 'Corona', 'Sub base granular', 'Base granular', 'Imprimación', 'Carpeta asfáltica', 'Alcantarilla', 'Cuneta', 'Badén', 'Muro', 'Puente', 'Señalización', 'General'];
+var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'setiembre', 'octubre', 'noviembre', 'diciembre'];
+var CACHE_MAPAS = 'vias-mapas';
+var TILE = {
+  sat: { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attr: 'Imágenes © Esri, Maxar' },
+  osm: { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', attr: '© OpenStreetMap' }
+};
+
+/* ======================= AUXILIARES ======================= */
+function $(id) { return document.getElementById(id); }
+function nn(a, b) { return (a === undefined || a === null) ? b : a; }
+function esc(t) { return String(nn(t, '')).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function lsG(k) { try { return localStorage.getItem('vc_' + k); } catch (e) { return null; } }
+function lsS(k, v) { try { localStorage.setItem('vc_' + k, v); } catch (e) { } }
+function dos(n) { return ('0' + n).slice(-2); }
+function fmtProg(m) {
+  if (m === null || m === undefined || m === '' || isNaN(m)) return '—';
+  m = Number(m); var r = Math.round(Math.abs(m));
+  return (m < 0 ? '-' : '') + Math.floor(r / 1000) + '+' + ('00' + (r % 1000)).slice(-3);
+}
+function fmtCota(c) { return (c === null || c === undefined || c === '' || isNaN(c)) ? '' : Number(c).toFixed(2); }
+function fechaLarga(d) { return d.getDate() + ' de ' + MESES[d.getMonth()] + ' de ' + d.getFullYear() + ' ' + dos(d.getHours()) + ':' + dos(d.getMinutes()); }
+var MES3 = ['ene.', 'feb.', 'mar.', 'abr.', 'may.', 'jun.', 'jul.', 'ago.', 'set.', 'oct.', 'nov.', 'dic.'];
+function fechaSello(d) {
+  var h = d.getHours(), h12 = h % 12 || 12;
+  return d.getDate() + ' ' + MES3[d.getMonth()] + ' ' + d.getFullYear() + ' ' + h12 + ':' + dos(d.getMinutes()) + ':' + dos(d.getSeconds()) + (h < 12 ? ' a. m.' : ' p. m.');
+}
+function fechaCorta(d) { return dos(d.getDate()) + '/' + dos(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + dos(d.getHours()) + ':' + dos(d.getMinutes()); }
+function num(t) {
+  t = String(nn(t, '')).replace(/\s/g, '');
+  if (t === '') return NaN;
+  var c = (t.match(/,/g) || []).length, d = (t.match(/\./g) || []).length;
+  if (c && d) t = t.replace(/,/g, ''); else if (c === 1) t = t.replace(',', '.'); else if (c > 1) t = t.replace(/,/g, '');
+  return Number(t);
+}
+function parseProg(t) {
+  t = String(nn(t, '')).replace(/\s/g, '');
+  if (!t) return NaN;
+  if (t.indexOf('+') > 0) { var p = t.split('+'); return num(p[0]) * 1000 + num(p[1]); }
+  return num(t);
+}
+function aviso(m, err) {
+  var t = $('toast'); t.textContent = m; t.className = 'ver' + (err ? ' error' : '');
+  clearTimeout(t._h); t._h = setTimeout(function () { t.className = ''; }, err ? 4500 : 2200);
+}
+function ocultar(id) { $(id).classList.add('oculto'); }
+function mostrar(id) { $(id).classList.remove('oculto'); }
+
+/* ======================= APP ANDROID ======================= */
+var ES_APP = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+function plugin(n) { return (ES_APP && window.Capacitor.Plugins) ? window.Capacitor.Plugins[n] : null; }
+function blobB64(b) { return new Promise(function (ok, no) { var r = new FileReader(); r.onload = function () { ok(String(r.result).split(',')[1]); }; r.onerror = no; r.readAsDataURL(b); }); }
+
+/* ======================= ALMACÉN (IndexedDB) ======================= */
+var DBP = null;
+function db() {
+  if (DBP) return DBP;
+  DBP = new Promise(function (ok, no) {
+    var rq = indexedDB.open('vias_camara', 1);
+    rq.onupgradeneeded = function () { var d = rq.result; d.createObjectStore('kv'); d.createObjectStore('fotos', { keyPath: 'uid' }); };
+    rq.onsuccess = function () { ok(rq.result); }; rq.onerror = function () { no(rq.error); };
+  });
+  return DBP;
+}
+function tx(st, modo, fn) {
+  return db().then(function (d) {
+    return new Promise(function (ok, no) {
+      var t = d.transaction(st, modo), s = t.objectStore(st), res, r = fn(s);
+      if (r) r.onsuccess = function () { res = r.result; };
+      t.oncomplete = function () { ok(res); }; t.onerror = function () { no(t.error); };
+    });
+  });
+}
+function kvG(k) { return tx('kv', 'readonly', function (s) { return s.get(k); }); }
+function kvS(k, v) { return tx('kv', 'readwrite', function (s) { return s.put(v, k); }); }
+function kvD(k) { return tx('kv', 'readwrite', function (s) { return s.delete(k); }); }
+
+/* ======================= COORDENADAS ======================= */
+var W = { a: 6378137, f: 1 / 298.257223563, k0: 0.9996 };
+function zonaDe(lon) { return Math.floor((lon + 180) / 6) + 1; }
+function bandaUTM(lat) { return 'CDEFGHJKLMNPQRSTUVWXX'.charAt(Math.max(0, Math.min(20, Math.floor((lat + 80) / 8)))); }
+function aUTM(lat, lon, zona) {
+  var a = W.a, f = W.f, k0 = W.k0, e2 = f * (2 - f), ep2 = e2 / (1 - e2), e4 = e2 * e2, e6 = e4 * e2;
+  var lon0 = ((zona - 1) * 6 - 180 + 3) * Math.PI / 180, phi = lat * Math.PI / 180, lam = lon * Math.PI / 180;
+  var sp = Math.sin(phi), cp = Math.cos(phi), tp = Math.tan(phi);
+  var N = a / Math.sqrt(1 - e2 * sp * sp), T = tp * tp, C = ep2 * cp * cp, A = cp * (lam - lon0);
+  var M = a * ((1 - e2 / 4 - 3 * e4 / 64 - 5 * e6 / 256) * phi - (3 * e2 / 8 + 3 * e4 / 32 + 45 * e6 / 1024) * Math.sin(2 * phi)
+          + (15 * e4 / 256 + 45 * e6 / 1024) * Math.sin(4 * phi) - (35 * e6 / 3072) * Math.sin(6 * phi));
+  var x = k0 * N * (A + (1 - T + C) * Math.pow(A, 3) / 6 + (5 - 18 * T + T * T + 72 * C - 58 * ep2) * Math.pow(A, 5) / 120) + 500000;
+  var y = k0 * (M + N * tp * (A * A / 2 + (5 - T + 9 * C + 4 * C * C) * Math.pow(A, 4) / 24 + (61 - 58 * T + T * T + 600 * C - 330 * ep2) * Math.pow(A, 6) / 720));
+  if (lat < 0) y += 10000000;
+  return { e: x, n: y };
+}
+function deUTM(E, N, zona) {
+  var a = W.a, f = W.f, k0 = W.k0, e2 = f * (2 - f), ep2 = e2 / (1 - e2);
+  var x = E - 500000, y = N - 10000000, M = y / k0;
+  var mu = M / (a * (1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 * e2 * e2 / 256));
+  var e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2));
+  var p1 = mu + (3 * e1 / 2 - 27 * Math.pow(e1, 3) / 32) * Math.sin(2 * mu) + (21 * e1 * e1 / 16 - 55 * Math.pow(e1, 4) / 32) * Math.sin(4 * mu)
+         + (151 * Math.pow(e1, 3) / 96) * Math.sin(6 * mu) + (1097 * Math.pow(e1, 4) / 512) * Math.sin(8 * mu);
+  var s1 = Math.sin(p1), c1 = Math.cos(p1), t1 = Math.tan(p1);
+  var N1 = a / Math.sqrt(1 - e2 * s1 * s1), T1 = t1 * t1, C1 = ep2 * c1 * c1, R1 = a * (1 - e2) / Math.pow(1 - e2 * s1 * s1, 1.5), D = x / (N1 * k0);
+  var lat = p1 - (N1 * t1 / R1) * (D * D / 2 - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * ep2) * Math.pow(D, 4) / 24
+          + (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * ep2 - 3 * C1 * C1) * Math.pow(D, 6) / 720);
+  var lon = ((zona - 1) * 6 - 180 + 3) * Math.PI / 180 + (D - (1 + 2 * T1 + C1) * Math.pow(D, 3) / 6
+          + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * ep2 + 24 * T1 * T1) * Math.pow(D, 5) / 120) / c1;
+  return { lat: lat * 180 / Math.PI, lon: lon * 180 / Math.PI };
+}
+function proyectar(e, n, eje) {
+  var mejor = null;
+  for (var i = 0; i < eje.length - 1; i++) {
+    var p = eje[i], q = eje[i + 1], dx = q[1] - p[1], dy = q[2] - p[2], L2 = dx * dx + dy * dy;
+    if (!L2) continue;
+    var t = ((e - p[1]) * dx + (n - p[2]) * dy) / L2, tc = Math.max(0, Math.min(1, t));
+    var px = p[1] + tc * dx, py = p[2] + tc * dy, d = Math.sqrt((e - px) * (e - px) + (n - py) * (n - py));
+    if (!mejor || d < mejor.d) {
+      var fuera = (i === 0 && t < 0) ? 'antes' : ((i === eje.length - 2 && t > 1) ? 'despues' : '');
+      var cota = (p[3] !== null && p[3] !== undefined && q[3] !== null && q[3] !== undefined) ? p[3] + tc * (q[3] - p[3]) : null;
+      mejor = { d: d, prog: p[0] + tc * (q[0] - p[0]), lado: (dx * (n - p[2]) - dy * (e - p[1])) > 0 ? 'Izq' : 'Der', fuera: fuera, cota: cota };
+    }
+  }
+  return mejor;
+}
+
+/* ======================= GPS ======================= */
+function iniciarGPS() {
+  if (!navigator.geolocation) { avisoCam('Este celular no da ubicación'); return; }
+  navigator.geolocation.watchPosition(function (p) {
+    S.fix = { lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy, alt: p.coords.altitude, t: Date.now() };
+    actualizar();
+  }, function (e) {
+    avisoCam(e.code === 1 ? 'Active el permiso de ubicación para la app' : 'Buscando señal GPS… salga a un lugar despejado');
+  }, { enableHighAccuracy: true, maximumAge: 2000, timeout: 30000 });
+}
+function avisoCam(m) { $('avisoCam').textContent = m; $('avisoCam').classList.toggle('oculto', !m); }
+/* Datos del momento: posición, progresiva, lado, cota */
+function ahora() {
+  var f = S.fix, o = { fecha: new Date(), lat: null, lon: null, e: null, n: null, zona: null, acc: null, alt: null,
+                       prog: null, lado: '', dist: null, cota: null, fuera: '', viejo: false };
+  if (!f) return o;
+  o.lat = f.lat; o.lon = f.lon; o.acc = f.acc; o.alt = f.alt; o.viejo = (Date.now() - f.t) > 90000;
+  o.zona = S.via ? S.via.zona : zonaDe(f.lon);
+  var u = aUTM(f.lat, f.lon, o.zona); o.e = u.e; o.n = u.n;
+  if (S.eje.length > 1) {
+    var p = proyectar(u.e, u.n, S.eje);
+    if (p) { o.prog = p.prog; o.dist = p.d; o.lado = p.d < 1.5 ? 'Eje' : p.lado; o.cota = p.cota; o.fuera = p.fuera; }
+  }
+  return o;
+}
+function textoLado(o) { return o.lado === 'Eje' ? 'Sobre el eje' : (o.lado === 'Izq' ? 'Lado izquierdo' : 'Lado derecho') + ' · ' + o.dist.toFixed(1) + ' m'; }
+function actualizar() {
+  var o = ahora(), pp = $('pProg'), ps = $('pSub'), av = '';
+  pp.className = '';
+  if (!S.fix) { pp.textContent = '—'; ps.textContent = 'Buscando GPS…'; }
+  else if (o.prog === null) {
+    pp.textContent = o.zona + bandaUTM(o.lat) + ' ' + Math.round(o.e) + ' ' + Math.round(o.n);
+    pp.style.fontSize = '22px';
+    ps.textContent = (S.via ? 'Sin eje' : 'Sin carretera') + ' · ±' + Math.round(o.acc) + ' m' + (o.alt ? ' · ' + Math.round(o.alt) + ' msnm' : '');
+  } else {
+    pp.style.fontSize = '';
+    pp.textContent = fmtProg(o.prog);
+    pp.className = o.acc <= 10 ? 'ok' : (o.acc <= 25 ? 'med' : 'mal');
+    ps.textContent = textoLado(o) + (o.cota !== null ? ' · Cota ' + fmtCota(o.cota) : '') + ' · ±' + Math.round(o.acc) + ' m';
+    if (o.fuera === 'antes') av = 'Está antes del inicio del eje';
+    else if (o.fuera === 'despues') av = 'Está después del final del eje';
+    else if (o.dist > 80) av = 'Está a ' + Math.round(o.dist) + ' m del eje: ¿es la carretera correcta?';
+    else if (o.acc > 25) av = 'GPS débil (±' + Math.round(o.acc) + ' m): espere unos segundos';
+  }
+  if (S.fix) avisoCam(av);
+  pintarSello(o);
+  moverPos(o);
+}
+
+/* ======================= SELLO ======================= */
+function proyecto() { return lsG('proy') || (S.via ? S.via.nombre : ''); }
+function lineas(o) {
+  var l = [];
+  l.push(fechaSello(o.fecha));
+  l.push(o.e !== null ? o.zona + bandaUTM(o.lat) + ' ' + Math.round(o.e) + ' ' + Math.round(o.n) : 'Sin GPS');
+  if (lsG('lugar')) l.push(lsG('lugar'));
+  if (o.cota !== null) l.push('Altitud:' + Number(o.cota).toFixed(1) + 'msnm');
+  else if (o.alt) l.push('Altitud:' + o.alt.toFixed(1) + 'msnm');
+  if (lsG('extra')) l.push(lsG('extra'));
+  if (proyecto()) l.push(proyecto().toUpperCase());
+  var capa = $('capa').value; if (capa) l.push(capa);
+  if (o.prog !== null) l.push('Prog: ' + fmtProg(o.prog));
+  return l;
+}
+function pintarSello(o) {
+  o = o || ahora(); var l = lineas(o);
+  $('sello').innerHTML = l.map(function (t) { return '<div>' + esc(t) + '</div>'; }).join('');
+  $('lgo').classList.toggle('oculto', !S.logo); $('marca').classList.toggle('oculto', !!S.logo);
+  ajustarMarco();
+}
+function ajustarMarco() {
+  var v = $('vid'), vw = v.videoWidth, vh = v.videoHeight, Wd = window.innerWidth, H = window.innerHeight, m = $('marco');
+  if (!vw || !vh) { vw = Wd; vh = H; }
+  var k = Math.min(Wd / vw, H / vh), w = vw * k, h = vh * k;
+  m.style.left = ((Wd - w) / 2) + 'px'; m.style.top = ((H - h) / 2) + 'px'; m.style.width = w + 'px'; m.style.height = h + 'px';
+  $('sello').style.fontSize = Math.max(9, Math.min(w, h) / 30 * Number(lsG('tam') || 1)) + 'px';
+}
+window.addEventListener('resize', function () { setTimeout(ajustarMarco, 250); });
+function recortar(x, t, maxw) {
+  if (x.measureText(t).width <= maxw) return t;
+  while (t.length > 3 && x.measureText(t + '…').width > maxw) t = t.slice(0, -1);
+  return t + '…';
+}
+function estampar(src, l, o) {
+  var w = src.videoWidth || src.width, h = src.videoHeight || src.height, k = Math.min(1, 2560 / Math.max(w, h));
+  var cw = Math.round(w * k), ch = Math.round(h * k), c = document.createElement('canvas'); c.width = cw; c.height = ch;
+  var x = c.getContext('2d'); x.drawImage(src, 0, 0, cw, ch);
+  var tam = Number(lsG('tam') || 1), base = Math.max(14, Math.round(Math.min(cw, ch) / 30 * tam)), m = Math.round(base * 0.8);
+  var ts = l.map(function () { return base; }), alto = 0;
+  ts.forEach(function (t) { alto += t * 1.2; });
+  var g = x.createLinearGradient(0, ch - alto - m * 3, 0, ch); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.35)');
+  x.fillStyle = g; x.fillRect(0, ch - alto - m * 3, cw, alto + m * 3);
+  x.textAlign = 'right'; x.textBaseline = 'top';
+  var y = ch - m - alto;
+  l.forEach(function (t, i) {
+    x.font = 'italic 400 ' + ts[i] + 'px Sello, "Source Sans 3", Arial, sans-serif';
+    var s = recortar(x, t, cw - 2 * m);
+    x.shadowColor = 'rgba(0,0,0,0.9)'; x.shadowBlur = Math.max(3, base * 0.25); x.shadowOffsetX = 1; x.shadowOffsetY = 1;
+    x.fillStyle = '#fff'; x.fillText(s, cw - m, y); x.fillText(s, cw - m, y);
+    y += ts[i] * 1.2;
+  });
+  x.shadowColor = 'transparent'; x.shadowBlur = 0; x.shadowOffsetX = 0; x.shadowOffsetY = 0;
+  if (S.logo) {
+    var lw = Math.min(cw * 0.16, ch * 0.22) * tam, lh = lw * S.logo.height / S.logo.width;
+    if (lh > ch * 0.25) { lh = ch * 0.25; lw = lh * S.logo.width / S.logo.height; }
+    x.drawImage(S.logo, cw - m - lw, m, lw, lh);
+  }
+  return c;
+}
+
+/* ======================= CÁMARA ======================= */
+function encender() {
+  if (S.cam) S.cam.getTracks().forEach(function (t) { t.stop(); });
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { aviso('Este celular no permite abrir la cámara aquí', true); return; }
+  navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: S.frente ? 'user' : 'environment' }, width: { ideal: 4096 }, height: { ideal: 3072 } } })
+    .then(function (st) { S.cam = st; var v = $('vid'); v.srcObject = st; v.onloadedmetadata = function () { v.play(); ajustarMarco(); }; })
+    .catch(function () { aviso('Dé permiso de cámara a la app para tomar fotos', true); });
+}
+function girar() { S.frente = !S.frente; encender(); }
+function disparar() {
+  var v = $('vid');
+  if (!v.videoWidth) { aviso('La cámara aún no está lista', true); return; }
+  var o = ahora(), fl = $('flash');
+  fl.classList.add('ver'); setTimeout(function () { fl.classList.remove('ver'); }, 70);
+  var c = estampar(v, lineas(o), o);
+  if (o.viejo) aviso('Atención: GPS sin actualizar', true);
+  guardarFoto(c, o);
+}
+function nombreFoto(o) {
+  var d = o.fecha, t = d.getFullYear() + dos(d.getMonth() + 1) + dos(d.getDate()) + '_' + dos(d.getHours()) + dos(d.getMinutes()) + dos(d.getSeconds());
+  return 'VIAS_' + t + (o.prog !== null ? '_' + fmtProg(o.prog).replace('+', '-') : '');
+}
+function guardarFoto(c, o) {
+  var nombre = nombreFoto(o);
+  c.toBlob(function (blob) {
+    var k = Math.min(1, 900 / Math.max(c.width, c.height)), m = document.createElement('canvas');
+    m.width = Math.round(c.width * k); m.height = Math.round(c.height * k); m.getContext('2d').drawImage(c, 0, 0, m.width, m.height);
+    m.toBlob(function (mini) {
+      var r = {
+        uid: nombre + '_' + Math.floor(Math.random() * 1000), archivo: nombre + '.jpg', fecha: fechaCorta(o.fecha), via: S.via ? S.via.nombre : '',
+        viaId: S.via ? S.via.id : '', prog: o.prog === null ? '' : Math.round(o.prog * 100) / 100, progTxt: o.prog === null ? '' : fmtProg(o.prog),
+        lado: o.lado, dist: o.dist === null ? '' : Math.round(o.dist * 10) / 10, cota: o.cota === null ? '' : Math.round(o.cota * 1000) / 1000,
+        este: o.e === null ? '' : Math.round(o.e * 100) / 100, norte: o.n === null ? '' : Math.round(o.n * 100) / 100, zona: o.zona || '',
+        lat: nn(o.lat, ''), lon: nn(o.lon, ''), prec: o.acc === null ? '' : Math.round(o.acc), alt: o.alt ? Math.round(o.alt * 10) / 10 : '',
+        capa: $('capa').value, lugar: lsG('lugar') || '', mini: mini
+      };
+      tx('fotos', 'readwrite', function (s) { return s.put(r); }).then(cargarFotos);
+    }, 'image/jpeg', 0.75);
+    guardarGaleria(blob, nombre).then(function (ok) {
+      aviso(ok ? '✔ ' + (o.prog !== null ? fmtProg(o.prog) : 'Foto') + ' guardada' : 'Foto guardada en Documentos / VIAS Fotos');
+    });
+  }, 'image/jpeg', 0.9);
+}
+/* Galería del celular, álbum VIAS Fotos */
+var ALBUM = null;
+function albumId(md) {
+  if (ALBUM) return Promise.resolve(ALBUM);
+  var nom = 'VIAS Fotos';
+  return md.getAlbumsPath().then(function (r) {
+    return md.createAlbum({ name: nom }).catch(function () { }).then(function () { ALBUM = r.path + '/' + nom; return ALBUM; });
+  }).catch(function () {
+    return md.getAlbums().then(function (r) {
+      var a = (r.albums || []).filter(function (x) { return x.name === nom; })[0];
+      if (a) return a;
+      return md.createAlbum({ name: nom }).then(function () { return md.getAlbums(); }).then(function (r2) { return (r2.albums || []).filter(function (x) { return x.name === nom; })[0]; });
+    }).then(function (a) { ALBUM = a.identifier; return ALBUM; });
+  });
+}
+function guardarGaleria(blob, nombre) {
+  var md = plugin('Media'), fs = plugin('Filesystem');
+  if (!md && !fs) {
+    try { var u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = nombre + '.jpg'; document.body.appendChild(a); a.click(); a.remove(); } catch (e) { }
+    return Promise.resolve(true);
+  }
+  return blobB64(blob).then(function (b64) {
+    var p = md ? albumId(md).then(function (id) { return md.savePhoto({ path: 'data:image/jpeg;base64,' + b64, albumIdentifier: id, fileName: nombre }); }) : Promise.reject();
+    return p.then(function () { return true; }).catch(function () {
+      return fs.writeFile({ path: 'VIAS Fotos/' + nombre + '.jpg', data: b64, directory: 'DOCUMENTS', recursive: true }).then(function () { return false; });
+    });
+  });
+}
+
+/* ======================= PARTIDAS ======================= */
+function capas() { var t = lsG('capas'); return t ? t.split('\n').map(function (s) { return s.trim(); }).filter(Boolean) : CAPAS0; }
+function pintarCapas() {
+  var l = capas(), sel = lsG('capa') || '';
+  $('capa').innerHTML = '<option value="">— Sin partida —</option>' + l.map(function (c) { return '<option' + (c === sel ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('');
+  $('aCapas').value = l.join('\n');
+}
+function guardarCapa(v) { lsS('capa', v); pintarSello(); }
+function guardarCapas(t) { lsS('capas', t); pintarCapas(); pintarSello(); }
+
+/* ======================= CARRETERAS Y EJES ======================= */
+function cargarVias() {
+  return kvG('vias').then(function (l) {
+    S.vias = l || [];
+    var s = $('sVia'), id = lsG('via');
+    s.innerHTML = S.vias.length ? S.vias.map(function (v) { return '<option value="' + esc(v.id) + '">' + esc(v.nombre) + '</option>'; }).join('') : '<option value="">— Ninguna cargada —</option>';
+    if (!S.vias.some(function (v) { return v.id === id; })) id = S.vias.length ? S.vias[0].id : '';
+    s.value = id; $('bBorrarVia').disabled = !id;
+    return elegirVia(id);
+  });
+}
+function elegirVia(id) {
+  lsS('via', id || '');
+  S.via = null; S.vias.forEach(function (v) { if (v.id === id) S.via = v; });
+  S.eje = []; S.ejeLL = [];
+  var v = S.via;
+  $('viaInfo').textContent = v ? 'Tramo ' + fmtProg(v.progIni) + ' – ' + fmtProg(v.progFin) + ' · ' + v.puntos + ' puntos · Zona ' + v.zona + ' S' + (v.conCota ? ' · con cotas' : ' · sin cotas') : 'Cargue el eje desde el Excel del plano.';
+  if (!v) { actualizar(); dibujarEje(); estadoMapa(); return Promise.resolve(); }
+  return kvG('eje_' + v.id).then(function (p) {
+    S.eje = p || []; S.ejeLL = S.eje.map(function (q) { var g = deUTM(q[1], q[2], v.zona); return [g.lat, g.lon]; });
+    actualizar(); dibujarEje(true); estadoMapa();
+  });
+}
+function nuevaVia() {
+  $('vNom').value = ''; $('vTxt').value = ''; $('vArch').value = ''; $('vPrev').innerHTML = '';
+  $('vZona').value = String(S.fix ? zonaDe(S.fix.lon) : (S.via ? S.via.zona : 19));
+  mostrar('fVia'); setTimeout(function () { $('fVia').scrollIntoView({ behavior: 'smooth' }); }, 60);
+}
+function leerArchivo(inp) {
+  var f = inp.files && inp.files[0]; if (!f) return;
+  if (!$('vNom').value) $('vNom').value = f.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ');
+  var rd = new FileReader();
+  if (/\.(xlsx|xls)$/i.test(f.name)) {
+    rd.onload = function () {
+      try {
+        var wb = XLSX.read(new Uint8Array(rd.result), { type: 'array' }), txt = '';
+        wb.SheetNames.forEach(function (n) { var t = XLSX.utils.sheet_to_csv(wb.Sheets[n], { FS: '\t', rawNumbers: true }); if (leerTexto(t).pts.length > leerTexto(txt).pts.length) txt = t; });
+        $('vTxt').value = txt; previsualizar();
+      } catch (e) { $('vPrev').innerHTML = '<span class="adv">No se pudo leer el Excel: ' + esc(e.message) + '</span>'; }
+    };
+    rd.readAsArrayBuffer(f);
+  } else { rd.onload = function () { $('vTxt').value = String(rd.result); previsualizar(); }; rd.readAsText(f); }
+}
+/* Reconoce solo las columnas: progresiva (0+020 o número), Este (6 cifras), Norte (7 cifras) y la cota (la que sigue) */
+function leerTexto(txt) {
+  var pts = [], ign = 0, conCota = 0, hayProg = false;
+  String(txt || '').split(/\r?\n/).forEach(function (l) {
+    if (!l.trim()) return;
+    var cel = l.indexOf('\t') >= 0 ? l.split('\t') : (l.indexOf(';') >= 0 ? l.split(';') : l.trim().split(/\s+/));
+    if (cel.length < 3 && l.indexOf(',') >= 0) cel = l.split(',');
+    cel = cel.map(function (c) { return String(c).trim(); });
+    var iE = -1, iN = -1, iP = -1;
+    cel.forEach(function (c, k) { if (iP < 0 && /^\d+\s*\+\s*\d/.test(c)) iP = k; });
+    cel.forEach(function (c, k) {
+      if (k === iP) return; var x = num(c); if (isNaN(x)) return;
+      if (x >= 1000000 && x < 10000000 && iN < 0) iN = k; else if (x >= 100000 && x < 1000000 && iE < 0) iE = k;
+    });
+    if (iE < 0 || iN < 0) { ign++; return; }
+    if (iP < 0) { for (var k = 0; k < Math.min(iE, iN); k++) { var z = num(cel[k]); if (!isNaN(z) && z >= 0 && z < 1000000) iP = k; } }
+    var pr = iP >= 0 ? parseProg(cel[iP]) : NaN; if (!isNaN(pr)) hayProg = true;
+    var cota = null;
+    for (var j = Math.max(iE, iN) + 1; j < cel.length; j++) { var c2 = num(cel[j]); if (!isNaN(c2)) { if (c2 > -500 && c2 < 9000) cota = c2; break; } }
+    if (cota !== null) conCota++;
+    pts.push([pr, num(cel[iE]), num(cel[iN]), cota]);
+  });
+  var sinProg = pts.some(function (p) { return isNaN(p[0]); });
+  if (!hayProg || sinProg) {
+    var acc = 0; pts.forEach(function (p, i) { if (i) acc += Math.sqrt(Math.pow(p[1] - pts[i - 1][1], 2) + Math.pow(p[2] - pts[i - 1][2], 2)); p[0] = Math.round(acc * 1000) / 1000; });
+  } else {
+    pts.sort(function (a, b) { return a[0] - b[0]; });
+    pts = pts.filter(function (p, i) { return i === 0 || p[0] !== pts[i - 1][0]; });
+  }
+  return { pts: pts, ign: ign, conCota: conCota, calculada: !hayProg || sinProg };
+}
+function previsualizar() {
+  var r = leerTexto($('vTxt').value), p = r.pts, d = $('vPrev');
+  if (!$('vTxt').value.trim()) { d.innerHTML = ''; return r; }
+  if (p.length < 2) { d.innerHTML = '<span class="adv">No encuentro columnas de Este (6 cifras) y Norte (7 cifras).</span>'; return r; }
+  var mal = 0;
+  for (var i = 1; i < p.length; i++) { var dist = Math.sqrt(Math.pow(p[i][1] - p[i - 1][1], 2) + Math.pow(p[i][2] - p[i - 1][2], 2)), dp = p[i][0] - p[i - 1][0]; if (dp > 0 && (dist / dp > 1.3 || dist / dp < 0.6)) mal++; }
+  d.innerHTML = '<span class="ok">✔ ' + p.length + ' puntos · ' + fmtProg(p[0][0]) + ' a ' + fmtProg(p[p.length - 1][0]) + '</span>' +
+    (r.conCota ? ' · <span class="ok">con cotas</span>' : ' · <span class="adv">sin cotas</span>') +
+    (r.calculada ? '<br><span class="adv">No vi columna de progresiva: la calculo por distancia desde 0+000.</span>' : '') +
+    (mal ? '<br><span class="adv">⚠ ' + mal + ' tramo(s) donde la distancia no coincide con la progresiva.</span>' : '') +
+    (r.ign ? '<br>' + r.ign + ' fila(s) de títulos ignoradas.' : '') +
+    '<table><tr><th>Prog.</th><th>Este</th><th>Norte</th><th>Cota</th></tr>' + p.slice(0, 3).concat(p.length > 3 ? [p[p.length - 1]] : []).map(function (q) {
+      return '<tr><td>' + fmtProg(q[0]) + '</td><td>' + q[1].toFixed(3) + '</td><td>' + q[2].toFixed(3) + '</td><td>' + (q[3] === null ? '—' : q[3].toFixed(3)) + '</td></tr>';
+    }).join('') + '</table>';
+  return r;
+}
+function guardarVia() {
+  var nom = $('vNom').value.trim(), r = previsualizar();
+  if (!nom) { aviso('Escriba el nombre de la carretera', true); return; }
+  if (r.pts.length < 2) { aviso('Falta el eje: elija el archivo o pegue las columnas', true); return; }
+  var id = 'V' + Date.now().toString(36), p = r.pts;
+  var v = { id: id, nombre: nom, zona: Number($('vZona').value), progIni: p[0][0], progFin: p[p.length - 1][0], puntos: p.length, conCota: r.conCota > 0 };
+  S.vias.push(v); S.vias.sort(function (a, b) { return a.nombre.localeCompare(b.nombre); });
+  kvS('eje_' + id, p).then(function () { return kvS('vias', S.vias); }).then(function () {
+    lsS('via', id); ocultar('fVia'); ocultar('bienv'); aviso('Carretera cargada'); return cargarVias();
+  }).then(function () {
+    if (S.fix) { var o = ahora(); if (o.prog !== null && o.dist > 2000) aviso('Su posición está lejos de este eje: revise la zona UTM', true); }
+  });
+}
+function borrarVia() {
+  if (!S.via || !confirm('¿Borrar la carretera "' + S.via.nombre + '" del celular? Las fotos no se borran.')) return;
+  var id = S.via.id;
+  S.vias = S.vias.filter(function (v) { return v.id !== id; });
+  kvD('eje_' + id).then(function () { return kvS('vias', S.vias); }).then(cargarVias);
+}
+
+/* ======================= MAPA ======================= */
+function urlCuadro(url) {
+  if (!window.caches) return Promise.resolve(url);
+  return caches.open(CACHE_MAPAS).then(function (c) {
+    return c.match(url).then(function (r) {
+      if (r && r.type !== 'opaque') return r.blob();
+      return fetch(url, { mode: 'cors' }).then(function (res) { if (!res.ok) throw new Error(); c.put(url, res.clone()); return res.blob(); });
+    });
+  }).then(function (b) { return URL.createObjectURL(b); });
+}
+function capaTiles(tipo) {
+  var Capa = L.TileLayer.extend({
+    createTile: function (co, done) {
+      var img = document.createElement('img'); img.alt = '';
+      urlCuadro(this.getTileUrl(co)).then(function (src) {
+        img.onload = function () { if (src.indexOf('blob:') === 0) URL.revokeObjectURL(src); done(null, img); };
+        img.onerror = function (e) { done(e, img); }; img.src = src;
+      }).catch(function (e) { done(e || new Error('sin cuadro'), img); });
+      return img;
+    }
+  });
+  return new Capa(TILE[tipo].url, { maxZoom: 20, maxNativeZoom: tipo === 'sat' ? Number(lsG('zoom') || 17) : 19, attribution: TILE[tipo].attr });
+}
+var M = {};
+function iniciarMapa() {
+  if (S.mapa) { setTimeout(function () { S.mapa.invalidateSize(); centrar(); }, 80); return; }
+  if (typeof L === 'undefined') return;
+  S.mapa = L.map('mapa', { zoomControl: false }).setView(S.fix ? [S.fix.lat, S.fix.lon] : [-15.5, -70.1], 16);
+  M.sat = capaTiles('sat'); M.osm = capaTiles('osm'); M.sat.addTo(S.mapa);
+  M.km = L.layerGroup().addTo(S.mapa); M.fotos = L.layerGroup().addTo(S.mapa);
+  S.mapa.on('zoomend', dibujarKm);
+  dibujarEje(!S.fix); pintarFotosMapa(); moverPos(ahora());
+  setTimeout(function () { S.mapa.invalidateSize(); }, 100);
+}
+function cambiarCapaMapa() {
+  S.mapa.removeLayer(S.capaM === 'sat' ? M.sat : M.osm); S.capaM = S.capaM === 'sat' ? 'osm' : 'sat';
+  (S.capaM === 'sat' ? M.sat : M.osm).addTo(S.mapa); $('bCapaM').textContent = S.capaM === 'sat' ? '🛰' : '🗺';
+}
+function puntoEn(prog) {
+  var e = S.eje;
+  for (var i = 0; i < e.length - 1; i++) if (prog >= e[i][0] && prog <= e[i + 1][0]) {
+    var t = (prog - e[i][0]) / ((e[i + 1][0] - e[i][0]) || 1), a = S.ejeLL[i], b = S.ejeLL[i + 1];
+    return [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])];
+  }
+  return null;
+}
+function dibujarEje(encuadrar) {
+  if (!S.mapa) return;
+  if (M.eje) { S.mapa.removeLayer(M.eje); M.eje = null; }
+  M.km.clearLayers();
+  if (S.ejeLL.length < 2) return;
+  M.eje = L.polyline(S.ejeLL, { color: '#ff2a3a', weight: 4 }).addTo(S.mapa);
+  dibujarKm();
+  if (encuadrar) S.mapa.fitBounds(M.eje.getBounds(), { padding: [20, 20] });
+}
+function dibujarKm() {
+  if (!S.mapa || !M.km) return; M.km.clearLayers();
+  if (S.eje.length < 2) return;
+  var z = S.mapa.getZoom(), paso = z >= 16 ? 100 : (z >= 14 ? 500 : (z >= 12 ? 1000 : 5000));
+  for (var k = Math.ceil(S.eje[0][0] / paso) * paso; k <= S.eje[S.eje.length - 1][0]; k += paso) {
+    var ll = puntoEn(k); if (!ll) continue;
+    L.marker(ll, { interactive: false, icon: L.divIcon({ className: '', html: '<span class="kmEtq">' + fmtProg(k) + '</span>', iconSize: null }) }).addTo(M.km);
+  }
+}
+function moverPos(o) {
+  var mi = $('mInfo');
+  mi.firstChild.nodeValue = o.prog !== null ? fmtProg(o.prog) : (o.e !== null ? Math.round(o.e) + ' ' + Math.round(o.n) : '—');
+  mi.lastChild.textContent = o.prog !== null ? textoLado(o) + (o.cota !== null ? ' · Cota ' + fmtCota(o.cota) : '') : '';
+  if (!S.mapa || !S.fix) return;
+  var ll = [S.fix.lat, S.fix.lon];
+  if (!M.pos) {
+    M.prec = L.circle(ll, { radius: S.fix.acc, color: '#3d8bff', weight: 1, fillOpacity: .15, interactive: false }).addTo(S.mapa);
+    M.pos = L.circleMarker(ll, { radius: 8, color: '#fff', weight: 3, fillColor: '#3d8bff', fillOpacity: 1 }).addTo(S.mapa);
+  } else { M.pos.setLatLng(ll); M.prec.setLatLng(ll).setRadius(S.fix.acc); }
+}
+function centrar() { if (S.mapa && S.fix) S.mapa.setView([S.fix.lat, S.fix.lon], Math.max(S.mapa.getZoom(), 17)); }
+function pintarFotosMapa() {
+  if (!S.mapa || !M.fotos) return; M.fotos.clearLayers();
+  S.fotos.forEach(function (f) {
+    if (!f.lat || !f.lon) return;
+    L.circleMarker([f.lat, f.lon], { radius: 6, color: '#fff', weight: 2, fillColor: '#d0182a', fillOpacity: 1 })
+      .bindPopup('<b>' + esc(f.progTxt || 'Foto') + '</b><br>' + esc(f.capa) + '<br>' + esc(f.fecha)).addTo(M.fotos);
+  });
+}
+/* Descarga de mapa por franja del eje */
+function tileX(lon, z) { return Math.floor((lon + 180) / 360 * Math.pow(2, z)); }
+function tileY(lat, z) { var r = lat * Math.PI / 180; return Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * Math.pow(2, z)); }
+function tilesFranja(ll, buf, zmax) {
+  var set = {}, lista = [];
+  for (var z = 11; z <= zmax; z++) {
+    var tileM = 40075016.686 * Math.cos(ll[0][0] * Math.PI / 180) / Math.pow(2, z), paso = Math.max(20, Math.min(tileM / 2, buf));
+    for (var i = 0; i < ll.length; i++) {
+      var a = ll[i], b = ll[Math.min(i + 1, ll.length - 1)];
+      var dist = Math.sqrt(Math.pow((b[0] - a[0]) * 111320, 2) + Math.pow((b[1] - a[1]) * 111320 * Math.cos(a[0] * Math.PI / 180), 2)), n = Math.max(1, Math.ceil(dist / paso));
+      for (var s = 0; s <= n; s++) {
+        var la = a[0] + (b[0] - a[0]) * s / n, lo = a[1] + (b[1] - a[1]) * s / n, dLa = buf / 111320, dLo = buf / (111320 * Math.cos(la * Math.PI / 180));
+        for (var x = tileX(lo - dLo, z); x <= tileX(lo + dLo, z); x++) for (var y = tileY(la + dLa, z); y <= tileY(la - dLa, z); y++) {
+          var k = z + '/' + x + '/' + y; if (!set[k]) { set[k] = 1; lista.push([z, x, y]); }
+        }
+      }
+    }
+  }
+  return lista;
+}
+function estadoMapa() {
+  if (!S.via) { $('mapaEstado').textContent = 'Primero cargue una carretera.'; $('bDesc').disabled = true; return; }
+  $('bDesc').disabled = false;
+  kvG('mapa_' + S.via.id).then(function (m) {
+    $('mapaEstado').innerHTML = m ? '<span class="ok">✔ Descargado el ' + esc(m.fecha) + '</span> · ' + m.n + ' cuadros' + (m.err ? ' (' + m.err + ' fallidos)' : '') : 'Aún no descargado para <b>' + esc(S.via.nombre) + '</b>.';
+    $('bDesc').textContent = m ? '⬇ Actualizar mapa de esta carretera' : '⬇ Descargar mapa de esta carretera';
+  });
+}
+function descargarMapa() {
+  if (!S.via || S.descarga) return;
+  if (!navigator.onLine) { aviso('Necesita internet (wifi) para descargar', true); return; }
+  var zmax = Number($('dZoom').value); lsS('zoom', String(zmax));
+  var t = tilesFranja(S.ejeLL, 300, zmax), via = S.via, D = S.descarga = { i: 0, hechos: 0, err: 0, cancel: false };
+  mostrar('dProg'); mostrar('bCanc'); $('bDesc').disabled = true;
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
+  caches.open(CACHE_MAPAS).then(function (c) {
+    function uno() {
+      if (D.cancel || D.i >= t.length) return Promise.resolve();
+      var q = t[D.i++], u = TILE.sat.url.replace('{z}', q[0]).replace('{x}', q[1]).replace('{y}', q[2]);
+      return c.match(u).then(function (ya) {
+        if (ya) return;
+        return fetch(u, { mode: 'cors' }).then(function (r) { if (!r.ok) throw new Error(); return c.put(u, r); });
+      }).catch(function () { D.err++; }).then(function () {
+        D.hechos++;
+        if (D.hechos % 8 === 0 || D.hechos === t.length) { var pc = Math.round(D.hechos / t.length * 100); $('dBarra').style.width = pc + '%'; $('dTxt').textContent = pc + ' % · ' + D.hechos + ' de ' + t.length + ' cuadros'; }
+        return uno();
+      });
+    }
+    var h = []; for (var i = 0; i < 6; i++) h.push(uno());
+    return Promise.all(h);
+  }).then(function () {
+    var canc = D.cancel; S.descarga = null; ocultar('dProg'); ocultar('bCanc'); $('bDesc').disabled = false;
+    if (M.sat) M.sat.options.maxNativeZoom = zmax;
+    if (canc) { aviso('Descarga cancelada'); return; }
+    return kvS('mapa_' + via.id, { fecha: fechaCorta(new Date()), n: t.length, err: D.err }).then(function () {
+      estadoMapa(); aviso(D.err > t.length / 3 ? 'Muchos cuadros fallaron: revise el internet y repita' : 'Mapa listo para usar sin señal', D.err > t.length / 3);
+    });
+  });
+}
+function cancelarMapa() { if (S.descarga) S.descarga.cancel = true; }
+
+/* ======================= GALERÍA ======================= */
+function cargarFotos() {
+  return tx('fotos', 'readonly', function (s) { return s.getAll(); }).then(function (l) {
+    (S.fotos || []).forEach(function (f) { if (f.url) URL.revokeObjectURL(f.url); });
+    S.fotos = (l || []).sort(function (a, b) { return a.uid < b.uid ? 1 : -1; });
+    S.fotos.forEach(function (f) { f.url = URL.createObjectURL(f.mini); });
+    var u = $('ult');
+    u.style.backgroundImage = S.fotos.length ? 'url(' + S.fotos[0].url + ')' : '';
+    u.innerHTML = S.fotos.length ? '<span>' + S.fotos.length + '</span>' : '';
+    pintarGaleria(); pintarFotosMapa();
+  });
+}
+function pintarGaleria() {
+  $('galInfo').textContent = S.fotos.length ? S.fotos.length + ' fotos tomadas con la app. Los originales están en la galería del celular, álbum VIAS Fotos.' : 'Aún no hay fotos.';
+  $('grilla').innerHTML = S.fotos.map(function (f, i) {
+    return '<div style="background-image:url(' + f.url + ')" onclick="verFoto(' + i + ')"><span>' + esc(f.progTxt || f.fecha.slice(0, 10)) + '</span></div>';
+  }).join('');
+}
+function verFoto(i) {
+  var f = S.fotos[i]; $('visorImg').src = f.url;
+  $('visorTxt').innerHTML = '<b>' + esc(f.progTxt ? 'Prog. ' + f.progTxt : 'Foto') + '</b>' + (f.cota !== '' ? ' · Cota ' + fmtCota(f.cota) : '') +
+    '<br>' + esc(f.fecha) + ' · ' + esc(f.capa) + '<br>' + esc(f.via) + '<br><span style="color:#9aa4b0">' + esc(f.archivo) + ' · toque para cerrar</span>';
+  mostrar('visor');
+}
+function excel() {
+  if (!S.fotos.length) { aviso('Aún no hay fotos'); return; }
+  var filas = [['N°', 'Archivo', 'Fecha', 'Carretera', 'Progresiva', 'Lado', 'Dist. eje (m)', 'Cota eje (msnm)', 'Partida', 'Lugar', 'Zona', 'Este', 'Norte', 'Latitud', 'Longitud', 'Precisión (m)', 'Altitud GPS']];
+  S.fotos.slice().reverse().forEach(function (f, i) {
+    filas.push([i + 1, f.archivo, f.fecha, f.via, f.progTxt, f.lado, f.dist, f.cota, f.capa, f.lugar, f.zona, f.este, f.norte, f.lat, f.lon, f.prec, f.alt]);
+  });
+  var ws = XLSX.utils.aoa_to_sheet(filas); ws['!autofilter'] = { ref: ws['!ref'] };
+  ws['!cols'] = [5, 30, 16, 24, 10, 6, 10, 12, 18, 14, 6, 12, 13, 11, 11, 10, 10].map(function (w) { return { wch: w }; });
+  var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Fotos');
+  var d = new Date(), nom = 'Fotos_VIAS_' + d.getFullYear() + dos(d.getMonth() + 1) + dos(d.getDate()) + '.xlsx';
+  var fs = plugin('Filesystem');
+  if (!fs) { XLSX.writeFile(wb, nom); return; }
+  var b64 = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
+  fs.writeFile({ path: 'VIAS Fotos/' + nom, data: b64, directory: 'DOCUMENTS', recursive: true }).then(function (r) {
+    aviso('Excel guardado en Documentos / VIAS Fotos');
+    var sh = plugin('Share'); if (sh) return sh.share({ title: nom, url: r.uri, dialogTitle: 'Enviar Excel' });
+  }).catch(function (e) { aviso('No se pudo guardar el Excel', true); });
+}
+
+/* ======================= AJUSTES / LOGO ======================= */
+function ajuste(k, v) { lsS(k, String(v || '').trim()); pintarSello(); }
+function cargarLogo(inp) {
+  var f = inp.files && inp.files[0]; inp.value = ''; if (!f) return;
+  var img = new Image(); img.onload = function () {
+    var k = Math.min(1, 600 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+    c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    var d = c.toDataURL('image/png'); kvS('logo', d).then(function () { ponerLogo(d); aviso('Logo guardado'); });
+  };
+  img.src = URL.createObjectURL(f);
+}
+function ponerLogo(d) {
+  S.logo = null; $('logoPrev').classList.toggle('oculto', !d); $('bQuitarLogo').classList.toggle('oculto', !d);
+  if (!d) { $('lgo').removeAttribute('src'); pintarSello(); return; }
+  var im = new Image(); im.onload = function () { S.logo = im; pintarSello(); }; im.src = d;
+  $('logoPrev').src = d; $('lgo').src = d;
+}
+function quitarLogo() { kvD('logo').then(function () { ponerLogo(null); }); }
+
+/* ======================= PANELES ======================= */
+function abrir(id) {
+  ['pAjustes', 'pMapa', 'pGal'].forEach(function (p) { if (p !== id) ocultar(p); });
+  mostrar(id); S.panel = id;
+  if (id === 'pMapa') iniciarMapa();
+  if (id === 'pAjustes') estadoMapa();
+}
+function cerrar(id) { ocultar(id); S.panel = null; ajustarMarco(); }
+function cerrarBienv() { ocultar('bienv'); lsS('bienv', '1'); }
+function botonAtras() {
+  var app = plugin('App'); if (!app) return;
+  app.addListener('backButton', function () {
+    if (!$('visor').classList.contains('oculto')) { ocultar('visor'); return; }
+    if (S.panel) { cerrar(S.panel); return; }
+    app.minimizeApp();
+  });
+  app.addListener('appStateChange', function (st) { if (st.isActive && !S.cam) encender(); if (st.isActive && S.cam && S.cam.getVideoTracks()[0].readyState === 'ended') encender(); });
+}
+
+/* ======================= INICIO ======================= */
+(function () {
+  $('aLugar').value = lsG('lugar') || ''; $('aProy').value = lsG('proy') || ''; $('aExtra').value = lsG('extra') || ''; $('aTam').value = lsG('tam') || '1';
+  if (lsG('zoom')) $('dZoom').value = lsG('zoom');
+  pintarCapas(); botonAtras();
+  try { document.fonts.load('italic 400 20px Sello'); } catch (e) { }
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
+  encender(); iniciarGPS();
+  kvG('logo').then(ponerLogo).catch(function () { });
+  cargarVias().then(function () { if (!S.vias.length && !lsG('bienv')) mostrar('bienv'); });
+  cargarFotos();
+})();
+</script>
+</body>
+</html>
