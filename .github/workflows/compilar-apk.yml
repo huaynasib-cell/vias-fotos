@@ -1,0 +1,76 @@
+name: Compilar APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ordenar archivos
+        run: |
+          mkdir -p web scripts assets
+          for f in index.html icon.svg; do if [ -f "$f" ]; then mv "$f" web/; fi; done
+          if [ -f preparar.js ]; then mv preparar.js scripts/; fi
+          ls -R web scripts
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Íconos
+        run: |
+          if [ ! -f assets/icon-only.png ]; then node scripts/preparar.js iconos; else echo "Íconos ya incluidos"; fi
+
+      - name: Preparar archivos de la app
+        run: node scripts/preparar.js web
+
+      - name: Crear proyecto Android
+        run: npx cap add android
+
+      - name: Permisos de cámara, GPS y archivos
+        run: node scripts/preparar.js android
+
+      - name: Íconos de Android
+        continue-on-error: true
+        run: npx capacitor-assets generate --android --iconBackgroundColor '#b3121f' --splashBackgroundColor '#b3121f'
+
+      - name: Copiar app a Android
+        run: npx cap sync android
+
+      - name: Compilar APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk ../VIAS-Fotos.apk
+
+      - name: Guardar APK (Actions)
+        uses: actions/upload-artifact@v4
+        with:
+          name: VIAS-Fotos-apk
+          path: VIAS-Fotos.apk
+
+      - name: Publicar APK (enlace fijo para descargar)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk
+          name: VÍAS Fotos — última versión
+          body: "Descargue VIAS-Fotos.apk en el celular Android e instálelo. Compilación ${{ github.run_number }}."
+          files: VIAS-Fotos.apk
+          make_latest: true
