@@ -157,7 +157,7 @@ body.horiz #vid{object-fit:cover}
       <label>Nombre de la carretera<input id="vNom" placeholder="Ej.: Carretera Jila Purina"></label>
       <label>Zona UTM (Sur)<select id="vZona"><option value="17">17 S</option><option value="18">18 S</option><option value="19">19 S</option></select></label>
       <label>Archivo del eje (Excel o CSV con Progresiva, Este, Norte, Cota)
-        <input type="file" id="vArch" accept=".xlsx,.xls,.csv,.txt" onchange="leerArchivo(this)"></label>
+        <input type="file" id="vArch" onchange="leerArchivo(this)"></label>
       <label>…o pegue aquí las columnas copiadas del Excel
         <textarea id="vTxt" rows="5" oninput="previsualizar()" placeholder="0+000  363500.000  8349700.000  3840.000&#10;0+020  363512.000  8349716.000  3840.400"></textarea></label>
       <label id="vHojaBox" class="oculto">Hoja del Excel<select id="vHoja" onchange="$('vTxt').value = S.hojas[this.value].t; previsualizar()"></select></label>
@@ -589,7 +589,7 @@ function leerArchivo(inp) {
   var f = inp.files && inp.files[0]; if (!f) return;
   if (!$('vNom').value) $('vNom').value = f.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ');
   var rd = new FileReader();
-  if (/\.(xlsx|xls)$/i.test(f.name)) {
+  if (!/\.(csv|txt)$/i.test(f.name)) {
     rd.onload = function () {
       try {
         var wb = XLSX.read(new Uint8Array(rd.result), { type: 'array' }), hojas = [];
