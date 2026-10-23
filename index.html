@@ -157,7 +157,8 @@ body.horiz #vid{object-fit:cover}
       <label>Nombre de la carretera<input id="vNom" placeholder="Ej.: Carretera Jila Purina"></label>
       <label>Zona UTM (Sur)<select id="vZona"><option value="17">17 S</option><option value="18">18 S</option><option value="19">19 S</option></select></label>
       <label>Archivo del eje (Excel o CSV con Progresiva, Este, Norte, Cota)
-        <input type="file" id="vArch" onchange="leerArchivo(this)"></label>
+        <button type="button" class="btn prim" onclick="elegirArchivo()">📂 Elegir archivo Excel del eje</button>
+        <input type="file" id="vArch" class="oculto" onchange="leerArchivo(this)"><div id="vArchTxt" class="nota"></div></label>
       <label>…o pegue aquí las columnas copiadas del Excel
         <textarea id="vTxt" rows="5" oninput="previsualizar()" placeholder="0+000  363500.000  8349700.000  3840.000&#10;0+020  363512.000  8349716.000  3840.400"></textarea></label>
       <label id="vHojaBox" class="oculto">Hoja del Excel<select id="vHoja" onchange="$('vTxt').value = S.hojas[this.value].t; previsualizar()"></select></label>
@@ -581,31 +582,50 @@ function elegirVia(id) {
   });
 }
 function nuevaVia() {
-  $('vNom').value = ''; $('vTxt').value = ''; $('vArch').value = ''; $('vPrev').innerHTML = ''; ocultar('vHojaBox');
+  $('vNom').value = ''; $('vTxt').value = ''; $('vArch').value = ''; $('vPrev').innerHTML = ''; $('vArchTxt').innerHTML = ''; ocultar('vHojaBox');
   $('vZona').value = String(S.fix ? zonaDe(S.fix.lon) : (S.via ? S.via.zona : 19));
   mostrar('fVia'); setTimeout(function () { $('fVia').scrollIntoView({ behavior: 'smooth' }); }, 60);
 }
 function leerArchivo(inp) {
   var f = inp.files && inp.files[0]; if (!f) return;
-  if (!$('vNom').value) $('vNom').value = f.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ');
   var rd = new FileReader();
-  if (!/\.(csv|txt)$/i.test(f.name)) {
-    rd.onload = function () {
-      try {
-        var wb = XLSX.read(new Uint8Array(rd.result), { type: 'array' }), hojas = [];
-        wb.SheetNames.forEach(function (n) {
-          var t = XLSX.utils.sheet_to_csv(wb.Sheets[n], { FS: '\t', rawNumbers: true }), r = leerTexto(t);
-          if (r.pts.length > 1) hojas.push({ n: n, t: t, p: r.pts.length, c: r.calculada ? 0 : 1 });
-        });
-        hojas.sort(function (a, b) { return (b.c - a.c) || (b.p - a.p); });
-        S.hojas = hojas;
-        $('vHoja').innerHTML = hojas.map(function (h, i) { return '<option value="' + i + '">' + esc(h.n) + ' (' + h.p + ' puntos' + (h.c ? ', con progresiva' : ', sin progresiva') + ')</option>'; }).join('');
-        $('vHojaBox').classList.toggle('oculto', hojas.length < 2);
-        $('vTxt').value = hojas.length ? hojas[0].t : ''; previsualizar();
-      } catch (e) { $('vPrev').innerHTML = '<span class="adv">No se pudo leer el Excel: ' + esc(e.message) + '</span>'; }
-    };
-    rd.readAsArrayBuffer(f);
-  } else { rd.onload = function () { $('vTxt').value = String(rd.result); previsualizar(); }; rd.readAsText(f); }
+  rd.onload = function () { procesarArchivo(f.name, new Uint8Array(rd.result)); };
+  rd.onerror = function () { estadoArchivo('No se pudo abrir el archivo en el celular. Pruebe copiándolo a Descargas.', true); };
+  rd.readAsArrayBuffer(f);
+}
+/* Selector de archivos nativo de Android (abre Descargas, WhatsApp, Drive…); si no existe usa el del navegador */
+function elegirArchivo() {
+  var fp = plugin('FilePicker');
+  if (!fp) { $('vArch').value = ''; $('vArch').click(); return; }
+  fp.pickFiles({ limit: 1, readData: true }).then(function (r) {
+    var f = r.files && r.files[0]; if (!f) return;
+    if (!f.data) { estadoArchivo('El archivo llegó vacío. Cópielo a Descargas y vuelva a intentar.', true); return; }
+    var bin = atob(f.data), u = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    procesarArchivo(f.name || 'eje.xlsx', u);
+  }).catch(function (e) {
+    var m = (e && e.message) || '';
+    if (!/cancel/i.test(m)) estadoArchivo('No se pudo abrir el archivo: ' + m, true);
+  });
+}
+function estadoArchivo(m, mal) { $('vArchTxt').innerHTML = mal ? '<span class="adv">' + esc(m) + '</span>' : esc(m); }
+function procesarArchivo(nombre, bytes) {
+  if (!$('vNom').value) $('vNom').value = String(nombre).replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ');
+  estadoArchivo('📄 ' + nombre + ' (' + Math.round(bytes.length / 1024) + ' KB)');
+  if (/\.(csv|txt)$/i.test(nombre)) { $('vTxt').value = new TextDecoder().decode(bytes); previsualizar(); return; }
+  try {
+    var wb = XLSX.read(bytes, { type: 'array' }), hojas = [];
+    wb.SheetNames.forEach(function (n) {
+      var t = XLSX.utils.sheet_to_csv(wb.Sheets[n], { FS: '\t', rawNumbers: true }), r = leerTexto(t);
+      if (r.pts.length > 1) hojas.push({ n: n, t: t, p: r.pts.length, c: r.calculada ? 0 : 1 });
+    });
+    hojas.sort(function (a, b) { return (b.c - a.c) || (b.p - a.p); });
+    S.hojas = hojas;
+    $('vHoja').innerHTML = hojas.map(function (h, i) { return '<option value="' + i + '">' + esc(h.n) + ' (' + h.p + ' puntos' + (h.c ? ', con progresiva' : ', sin progresiva') + ')</option>'; }).join('');
+    $('vHojaBox').classList.toggle('oculto', hojas.length < 2);
+    if (!hojas.length) { $('vTxt').value = ''; $('vPrev').innerHTML = ''; estadoArchivo('📄 ' + nombre + ': se abrió, pero en sus ' + wb.SheetNames.length + ' hoja(s) no encontré columnas de ESTE (6 cifras) y NORTE (7 cifras).', true); return; }
+    $('vTxt').value = hojas[0].t; previsualizar();
+  } catch (e) { estadoArchivo('📄 ' + nombre + ': no se pudo leer como Excel (' + e.message + ').', true); }
 }
 /* Reconoce solo las columnas: progresiva (0+020 o número), Este (6 cifras), Norte (7 cifras) y la cota (la que sigue) */
 function leerTexto(txt) {
