@@ -40,6 +40,13 @@ button,input,select,textarea{font-family:inherit;font-size:16px}
 #ult span{position:absolute;right:-8px;top:-8px;background:var(--rojo);color:#fff;font-size:12px;font-weight:800;border-radius:10px;padding:1px 6px}
 #disp{width:62px;height:62px;border-radius:50%;border:4px solid #fff;background:var(--rojo);cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.6)}
 #disp:active{transform:scale(.9)}
+#disp{display:flex;align-items:center;justify-content:center}
+#disp.video{background:radial-gradient(circle,#d0182a 0 42%,#fff 44% 100%)}
+#disp.grabando{background:#fff}
+#disp.grabando::after{content:'';width:24px;height:24px;background:var(--rojo);border-radius:5px}
+#rec{position:fixed;left:50%;transform:translateX(-50%);top:calc(86px + env(safe-area-inset-top));z-index:7;background:rgba(208,24,42,.92);color:#fff;font-weight:800;padding:4px 14px;border-radius:14px;font-size:15px}
+#foco{position:fixed;width:72px;height:72px;border:2px solid #ffd54a;border-radius:10px;z-index:4;pointer-events:none;transform:translate(-50%,-50%) scale(1.4);opacity:0;transition:transform .25s,opacity .4s}
+#foco.ver{opacity:1;transform:translate(-50%,-50%) scale(1)}
 #avisoCam{position:fixed;left:12px;right:12px;top:calc(96px + env(safe-area-inset-top));z-index:6;background:rgba(245,166,35,.92);color:#2a1a00;font-weight:700;font-size:14px;padding:8px 12px;border-radius:10px;text-align:center}
 #bienv{position:fixed;left:16px;right:16px;top:50%;transform:translateY(-50%);z-index:7;background:rgba(22,25,30,.96);border:1px solid var(--borde);border-radius:16px;padding:20px;text-align:center}
 #bienv h2{margin:0 0 6px;font-size:22px}
@@ -103,10 +110,13 @@ body.horiz #vid{object-fit:cover}
 <div id="flash"></div>
 <div class="top">
   <div id="pill" onclick="abrir('pMapa')"><div id="pProg">—</div><div id="pSub">Buscando GPS…</div></div>
+  <button class="redondo" id="bModo" onclick="cambiarModo()" title="Foto / Video">🎥</button>
   <button class="redondo" onclick="girar()" title="Cambiar cámara">⟲</button>
   <button class="redondo" onclick="abrir('pAjustes')" title="Ajustes">⚙</button>
 </div>
 <div id="avisoCam" class="oculto"></div>
+<div id="rec" class="oculto">● 00:00</div>
+<div id="foco"></div>
 <div class="bottom">
   <select id="capa" class="chip" onchange="guardarCapa(this.value)"></select>
   <div class="fila3">
@@ -430,6 +440,11 @@ function estampar(src, l, o) {
   var k = Math.min(1, 2560 / Math.max(w, h));
   var cw = Math.round(w * k), ch = Math.round(h * k), c = document.createElement('canvas'); c.width = cw; c.height = ch;
   var x = c.getContext('2d'); x.drawImage(src, sx, sy, w, h, 0, 0, cw, ch);
+  dibujarSello(x, cw, ch, l);
+  return c;
+}
+/* Dibuja las líneas del sello y el logo sobre un lienzo (foto o cuadro de video) */
+function dibujarSello(x, cw, ch, l) {
   var tam = Number(lsG('tam') || 1), base = Math.max(14, Math.round(Math.min(cw, ch) / 30 * tam)), m = Math.round(base * 0.8);
   var ts = l.map(function () { return base; }), alto = 0;
   ts.forEach(function (t) { alto += t * 1.2; });
@@ -450,7 +465,6 @@ function estampar(src, l, o) {
     if (lh > ch * 0.35) { lh = ch * 0.35; lw = lh * S.logo.width / S.logo.height; }
     x.drawImage(S.logo, cw - m - lw, m, lw, lh);
   }
-  return c;
 }
 
 /* ======================= CÁMARA ======================= */
@@ -463,6 +477,7 @@ function encender() {
 }
 function girar() { S.frente = !S.frente; encender(); }
 function disparar() {
+  if (S.modo === 'video') { if (S.rec) detenerVideo(); else iniciarVideo(); return; }
   var v = $('vid');
   if (!v.videoWidth) { aviso('La cámara aún no está lista', true); return; }
   var o = ahora(), fl = $('flash');
@@ -895,7 +910,116 @@ function botonAtras() {
   app.addListener('appStateChange', function (st) { if (st.isActive) reanudar(); else pausar(); });
 }
 /* En segundo plano (app minimizada o pantalla bloqueada) se apagan cámara y GPS para no gastar batería */
+/* ---------- VIDEO con sello ---------- */
+function cambiarModo() {
+  if (S.rec) return;
+  S.modo = S.modo === 'video' ? 'foto' : 'video';
+  $('bModo').textContent = S.modo === 'video' ? '📷' : '🎥';
+  $('disp').classList.toggle('video', S.modo === 'video');
+  aviso(S.modo === 'video' ? 'Modo VIDEO: toque el botón para grabar' : 'Modo FOTO');
+}
+function iniciarVideo() {
+  var v = $('vid');
+  if (!v.videoWidth) { aviso('La cámara aún no está lista', true); return; }
+  if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) { aviso('Este celular no permite grabar video aquí', true); return; }
+  var w = v.videoWidth, h = v.videoHeight, sx = 0, sy = 0;
+  if (horizontal()) { var a = window.innerWidth / window.innerHeight; if (w / h > a) { var nw = h * a; sx = (w - nw) / 2; w = nw; } else { var nh = w / a; sy = (h - nh) / 2; h = nh; } }
+  var k = Math.min(1, 1280 / Math.max(w, h)), cw = Math.round(w * k / 2) * 2, ch = Math.round(h * k / 2) * 2;
+  var c = document.createElement('canvas'); c.width = cw; c.height = ch;
+  var x = c.getContext('2d'), o0 = ahora();
+  var R = S.rec = { c: c, partes: [], inicio: Date.now(), o0: o0, nombre: nombreFoto(o0).replace('VIAS_', 'VIAS_VID_'), capa: $('capa').value };
+  function cuadro() {
+    if (S.rec !== R) return;
+    x.drawImage(v, sx, sy, w, h, 0, 0, cw, ch);
+    dibujarSello(x, cw, ch, lineas(ahora()));
+    if (!R.mini && R.partes !== null) { R.mini = true; c.toBlob(function (b) { R.mini = b; }, 'image/jpeg', 0.7); }
+    R.raf = requestAnimationFrame(cuadro);
+  }
+  cuadro();
+  var st = c.captureStream(30);
+  function arrancar(au) {
+    if (S.rec !== R) { if (au) au.getTracks().forEach(function (t) { t.stop(); }); return; }
+    R.audio = au; if (au) au.getAudioTracks().forEach(function (t) { st.addTrack(t); });
+    var tipos = ['video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp8,opus', 'video/webm'], mime = '';
+    for (var i = 0; i < tipos.length; i++) if (MediaRecorder.isTypeSupported(tipos[i])) { mime = tipos[i]; break; }
+    try { R.rec = new MediaRecorder(st, mime ? { mimeType: mime, videoBitsPerSecond: 5000000 } : {}); }
+    catch (e) { S.rec = null; aviso('No se pudo iniciar la grabación', true); return; }
+    R.mime = R.rec.mimeType || mime || 'video/webm'; R.ext = R.mime.indexOf('mp4') >= 0 ? 'mp4' : 'webm';
+    R.rec.ondataavailable = function (e) { if (e.data && e.data.size) R.partes.push(e.data); };
+    R.rec.onstop = function () { guardarVideo(R); };
+    R.rec.start(1000);
+    $('disp').classList.add('grabando'); mostrar('rec');
+    R.reloj = setInterval(function () { var s = Math.floor((Date.now() - R.inicio) / 1000); $('rec').textContent = '● ' + dos(Math.floor(s / 60)) + ':' + dos(s % 60); }, 500);
+  }
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(arrancar).catch(function () { aviso('Grabando sin sonido (sin permiso de micrófono)', true); arrancar(null); });
+}
+function detenerVideo() {
+  var R = S.rec; if (!R) return;
+  clearInterval(R.reloj); $('disp').classList.remove('grabando'); ocultar('rec'); $('rec').textContent = '● 00:00';
+  if (R.rec && R.rec.state !== 'inactive') R.rec.stop(); else S.rec = null;
+}
+function guardarVideo(R) {
+  S.rec = null; cancelAnimationFrame(R.raf);
+  if (R.audio) R.audio.getTracks().forEach(function (t) { t.stop(); });
+  var blob = new Blob(R.partes, { type: R.mime }), nombre = R.nombre + '.' + R.ext, o = R.o0;
+  aviso('Guardando video…');
+  guardarVideoGaleria(blob, nombre).then(function (ok) { aviso(ok ? '✔ Video guardado' : 'Video guardado en Documentos / VIAS Fotos'); })
+    .catch(function () { aviso('No se pudo guardar el video', true); });
+  var mini = (R.mini && R.mini.size) ? R.mini : blob;
+  var r = { uid: R.nombre + '_' + Math.floor(Math.random() * 1000), archivo: nombre, tipo: 'video', fecha: fechaCorta(o.fecha), via: S.via ? S.via.nombre : '',
+    viaId: S.via ? S.via.id : '', prog: o.prog === null ? '' : Math.round(o.prog * 100) / 100, progTxt: o.prog === null ? '' : fmtProg(o.prog),
+    lado: o.lado, dist: o.dist === null ? '' : Math.round(o.dist * 10) / 10, cota: o.cota === null ? '' : Math.round(o.cota * 1000) / 1000,
+    este: o.e === null ? '' : Math.round(o.e * 100) / 100, norte: o.n === null ? '' : Math.round(o.n * 100) / 100, zona: o.zona || '',
+    lat: nn(o.lat, ''), lon: nn(o.lon, ''), prec: o.acc === null ? '' : Math.round(o.acc), alt: o.alt ? Math.round(o.alt * 10) / 10 : '',
+    capa: R.capa, lugar: lsG('lugar') || '', mini: mini };
+  if (r.mini === blob) { r.mini = new Blob([], { type: 'image/jpeg' }); }
+  tx('fotos', 'readwrite', function (s) { return s.put(r); }).then(cargarFotos);
+}
+/* Escribe el video por partes (no se cuelga con videos largos) y lo pasa a la galería, álbum VIAS Fotos */
+function guardarVideoGaleria(blob, nombre) {
+  var fs = plugin('Filesystem'), md = plugin('Media');
+  if (!fs) {
+    try { var u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = nombre; document.body.appendChild(a); a.click(); a.remove(); } catch (e) { }
+    return Promise.resolve(true);
+  }
+  var ruta = 'VIAS Fotos/' + nombre, TROZO = 3 * 1024 * 1024, pos = 0, primero = true;
+  function sig() {
+    if (pos >= blob.size) return Promise.resolve();
+    var parte = blob.slice(pos, pos + TROZO); pos += TROZO;
+    return blobB64(parte).then(function (b64) {
+      var p = primero ? fs.writeFile({ path: ruta, data: b64, directory: 'DOCUMENTS', recursive: true }) : fs.appendFile({ path: ruta, data: b64, directory: 'DOCUMENTS' });
+      primero = false; return p;
+    }).then(sig);
+  }
+  return sig().then(function () { return fs.getUri({ path: ruta, directory: 'DOCUMENTS' }); }).then(function (r) {
+    if (!md || !md.saveVideo) return false;
+    return albumId(md).then(function (id) { return md.saveVideo({ path: r.uri, albumIdentifier: id, fileName: nombre.replace(/\.[^.]+$/, '') }); })
+      .then(function () { return fs.deleteFile({ path: ruta, directory: 'DOCUMENTS' }).catch(function () { }); }).then(function () { return true; })
+      .catch(function () { return false; });
+  });
+}
+/* ---------- ENFOQUE con toque ---------- */
+function enfocar(cx, cy) {
+  var f = $('foco'); f.style.left = cx + 'px'; f.style.top = cy + 'px';
+  f.classList.remove('ver'); void f.offsetWidth; f.classList.add('ver');
+  clearTimeout(f._h); f._h = setTimeout(function () { f.classList.remove('ver'); }, 1200);
+  var t = S.cam && S.cam.getVideoTracks()[0], v = $('vid');
+  if (!t || !t.applyConstraints) return;
+  var vw = v.videoWidth, vh = v.videoHeight, W = window.innerWidth, H = window.innerHeight; if (!vw) return;
+  var k = horizontal() ? Math.max(W / vw, H / vh) : Math.min(W / vw, H / vh), dw = vw * k, dh = vh * k;
+  var nx = Math.max(0, Math.min(1, (cx - (W - dw) / 2) / dw)), ny = Math.max(0, Math.min(1, (cy - (H - dh) / 2) / dh));
+  var cap = t.getCapabilities ? t.getCapabilities() : {}, modos = cap.focusMode || [], c = { pointsOfInterest: [{ x: nx, y: ny }] };
+  if (modos.indexOf('single-shot') >= 0) c.focusMode = 'single-shot'; else if (modos.indexOf('continuous') >= 0) c.focusMode = 'continuous';
+  if (cap.exposureMode && cap.exposureMode.indexOf('continuous') >= 0) c.exposureMode = 'continuous';
+  t.applyConstraints({ advanced: [c] }).then(function () {
+    if (c.focusMode === 'single-shot') setTimeout(function () { t.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function () { }); }, 5000);
+  }).catch(function () {
+    if (!S.avisoFoco) { S.avisoFoco = 1; aviso('Este celular no deja enfocar con toque desde la app; usa el enfoque automático'); }
+  });
+}
+document.getElementById('vid').addEventListener('click', function (e) { enfocar(e.clientX, e.clientY); });
 function pausar() {
+  if (S.rec) detenerVideo();
   if (S.cam) { S.cam.getTracks().forEach(function (t) { t.stop(); }); S.cam = null; }
   if (S.gps !== undefined && S.gps !== null) { navigator.geolocation.clearWatch(S.gps); S.gps = null; }
 }
