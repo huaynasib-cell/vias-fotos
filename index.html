@@ -141,12 +141,19 @@ body.horiz #vid{object-fit:cover}
       <select id="sVia" onchange="elegirVia(this.value)"></select>
       <div id="viaInfo" class="nota"></div>
       <div class="dos"><button class="btn prim" onclick="nuevaVia()">＋ Cargar eje</button><button class="btn" id="bBorrarVia" onclick="borrarVia()">🗑 Borrar</button></div>
-      <button class="btn" onclick="plantilla()">⬇ Descargar plantilla Excel del eje</button>
-      <p class="nota">Pegue en la plantilla sus columnas Progresiva, Este, Norte y Cota (desde la fila 5) y luego cárguela con ＋ Cargar eje.</p>
+      <button class="btn" onclick="plantilla()">⬇ Descargar Excel de ejemplo del eje</button>
+      <p class="nota">Ábralo en la computadora para ver cómo debe quedar su Excel (hoja EJE) y las instrucciones (hoja COMO_PREPARAR).</p>
     </div>
 
     <div class="card oculto" id="fVia">
       <h3>Cargar eje (coordenadas y cotas del plano)</h3>
+      <div class="nota" style="margin:0 0 10px">Su Excel debe verse así (las columnas pueden empezar en A o B):
+        <table><tr><th>PROGRESIVA</th><th>ESTE</th><th>NORTE</th><th>COTA</th></tr>
+        <tr><td>0+000</td><td>370250.937</td><td>8350965.607</td><td>3841.910</td></tr>
+        <tr><td>0+010</td><td>370241.547</td><td>8350962.168</td><td>3841.916</td></tr>
+        <tr><td>0+020</td><td>370232.157</td><td>8350958.728</td><td>3841.922</td></tr>
+        <tr><td colspan="4">… hasta la última progresiva</td></tr></table>
+        <b>No</b> deje debajo otros cuadros con coordenadas (puntos topográficos, BMs) en la misma hoja, ni filas vacías entre los datos.</div>
       <label>Nombre de la carretera<input id="vNom" placeholder="Ej.: Carretera Jila Purina"></label>
       <label>Zona UTM (Sur)<select id="vZona"><option value="17">17 S</option><option value="18">18 S</option><option value="19">19 S</option></select></label>
       <label>Archivo del eje (Excel o CSV con Progresiva, Este, Norte, Cota)
@@ -862,14 +869,30 @@ function guardarExcel(wb, nom) {
 /* Plantilla vacía del eje: una sola hoja con los títulos que la app reconoce */
 function plantilla() {
   var ws = XLSX.utils.aoa_to_sheet([
-    ['PLANTILLA DEL EJE PARA VÍAS CÁMARA'],
-    ['Pegue desde la fila 5 sus 4 columnas (Pegado especial > Valores). Una sola hoja y sin filas vacías entre datos.'],
-    ['Formato: 0+000 / 370250.937 / 8350965.607 / 3841.910  (Progresiva, Este y Norte UTM WGS84, Cota en msnm)'],
-    ['PROGRESIVA', 'ESTE', 'NORTE', 'COTA']
+    ['PROGRESIVA', 'ESTE', 'NORTE', 'COTA'],
+    ['0+000', 370250.937, 8350965.607, 3841.910],
+    ['0+010', 370241.547, 8350962.168, 3841.916],
+    ['0+020', 370232.157, 8350958.728, 3841.922],
+    ['0+030', 370222.767, 8350955.289, 3841.928],
+    ['0+040', 370213.377, 8350951.850, 3841.934],
+    ['0+050', 370203.987, 8350948.410, 3841.940]
   ]);
   ws['!cols'] = [{ wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 12 }];
-  var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'EJE');
-  guardarExcel(wb, 'Plantilla_Eje_VIAS.xlsx');
+  var ins = XLSX.utils.aoa_to_sheet([
+    ['CÓMO PREPARAR SU EXCEL DEL EJE PARA VÍAS CÁMARA'], [''],
+    ['1. La hoja del eje debe tener 4 columnas: PROGRESIVA | ESTE | NORTE | COTA (o ELEVACION).'],
+    ['2. Fila de títulos arriba; los datos empiezan justo debajo. Pueden empezar en la columna A o B.'],
+    ['3. PROGRESIVA escrita como 0+000, 0+010, 0+020… o en metros (0, 10, 20…).'],
+    ['4. ESTE y NORTE en UTM WGS84 (Este con 6 cifras, Norte con 7 cifras).'],
+    ['5. COTA en msnm, en la columna justo a la derecha del NORTE.'],
+    ['6. No deje debajo otros cuadros con coordenadas (puntos topográficos, BMs, curvas) en la MISMA hoja, ni filas vacías.'],
+    ['7. Si el archivo tiene otras hojas con coordenadas, la app elige la que tiene progresivas; si duda, deje solo la hoja del eje.'],
+    ['8. Guarde como .xlsx y cárguelo en la app: ⚙ → ＋ Cargar eje → elija la zona UTM (19 S en Puno).'], [''],
+    ['La hoja EJE de este archivo es solo un EJEMPLO: reemplace los datos por los de su carretera.']
+  ]);
+  ins['!cols'] = [{ wch: 110 }];
+  var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'EJE'); XLSX.utils.book_append_sheet(wb, ins, 'COMO_PREPARAR');
+  guardarExcel(wb, 'Ejemplo_Eje_VIAS.xlsx');
 }
 
 /* ======================= AJUSTES / LOGO ======================= */
