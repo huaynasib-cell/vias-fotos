@@ -562,7 +562,8 @@ function leerTexto(txt) {
     if (cota !== null) conCota++;
     pts.push([pr, num(cel[iE]), num(cel[iN]), cota]);
   });
-  var sinProg = pts.some(function (p) { return isNaN(p[0]); });
+  var conProg = pts.filter(function (p) { return !isNaN(p[0]); }).length, sinProg = false;
+  if (hayProg && conProg >= pts.length * 0.5) { ign += pts.length - conProg; pts = pts.filter(function (p) { return !isNaN(p[0]); }); } else sinProg = true;
   if (!hayProg || sinProg) {
     var acc = 0; pts.forEach(function (p, i) { if (i) acc += Math.sqrt(Math.pow(p[1] - pts[i - 1][1], 2) + Math.pow(p[2] - pts[i - 1][2], 2)); p[0] = Math.round(acc * 1000) / 1000; });
   } else {
