@@ -129,6 +129,7 @@ td,th{border-bottom:1px solid var(--borde);padding:5px 4px;text-align:left}
         <input type="file" id="vArch" accept=".xlsx,.xls,.csv,.txt" onchange="leerArchivo(this)"></label>
       <label>…o pegue aquí las columnas copiadas del Excel
         <textarea id="vTxt" rows="5" oninput="previsualizar()" placeholder="0+000  363500.000  8349700.000  3840.000&#10;0+020  363512.000  8349716.000  3840.400"></textarea></label>
+      <label id="vHojaBox" class="oculto">Hoja del Excel<select id="vHoja" onchange="$('vTxt').value = S.hojas[this.value].t; previsualizar()"></select></label>
       <div id="vPrev" class="nota"></div>
       <div class="dos"><button class="btn" onclick="ocultar('fVia')">Cancelar</button><button class="btn prim" id="bGuardar" onclick="guardarVia()">Guardar</button></div>
     </div>
@@ -521,7 +522,7 @@ function elegirVia(id) {
   });
 }
 function nuevaVia() {
-  $('vNom').value = ''; $('vTxt').value = ''; $('vArch').value = ''; $('vPrev').innerHTML = '';
+  $('vNom').value = ''; $('vTxt').value = ''; $('vArch').value = ''; $('vPrev').innerHTML = ''; ocultar('vHojaBox');
   $('vZona').value = String(S.fix ? zonaDe(S.fix.lon) : (S.via ? S.via.zona : 19));
   mostrar('fVia'); setTimeout(function () { $('fVia').scrollIntoView({ behavior: 'smooth' }); }, 60);
 }
@@ -532,9 +533,16 @@ function leerArchivo(inp) {
   if (/\.(xlsx|xls)$/i.test(f.name)) {
     rd.onload = function () {
       try {
-        var wb = XLSX.read(new Uint8Array(rd.result), { type: 'array' }), txt = '';
-        wb.SheetNames.forEach(function (n) { var t = XLSX.utils.sheet_to_csv(wb.Sheets[n], { FS: '\t', rawNumbers: true }); if (leerTexto(t).pts.length > leerTexto(txt).pts.length) txt = t; });
-        $('vTxt').value = txt; previsualizar();
+        var wb = XLSX.read(new Uint8Array(rd.result), { type: 'array' }), hojas = [];
+        wb.SheetNames.forEach(function (n) {
+          var t = XLSX.utils.sheet_to_csv(wb.Sheets[n], { FS: '\t', rawNumbers: true }), r = leerTexto(t);
+          if (r.pts.length > 1) hojas.push({ n: n, t: t, p: r.pts.length, c: r.calculada ? 0 : 1 });
+        });
+        hojas.sort(function (a, b) { return (b.c - a.c) || (b.p - a.p); });
+        S.hojas = hojas;
+        $('vHoja').innerHTML = hojas.map(function (h, i) { return '<option value="' + i + '">' + esc(h.n) + ' (' + h.p + ' puntos' + (h.c ? ', con progresiva' : ', sin progresiva') + ')</option>'; }).join('');
+        $('vHojaBox').classList.toggle('oculto', hojas.length < 2);
+        $('vTxt').value = hojas.length ? hojas[0].t : ''; previsualizar();
       } catch (e) { $('vPrev').innerHTML = '<span class="adv">No se pudo leer el Excel: ' + esc(e.message) + '</span>'; }
     };
     rd.readAsArrayBuffer(f);
@@ -542,7 +550,7 @@ function leerArchivo(inp) {
 }
 /* Reconoce solo las columnas: progresiva (0+020 o número), Este (6 cifras), Norte (7 cifras) y la cota (la que sigue) */
 function leerTexto(txt) {
-  var pts = [], ign = 0, conCota = 0, hayProg = false;
+  var pts = [], ign = 0, conCota = 0, hayProg = false, hdrP = -1;
   String(txt || '').split(/\r?\n/).forEach(function (l) {
     if (!l.trim()) return;
     var cel = l.indexOf('\t') >= 0 ? l.split('\t') : (l.indexOf(';') >= 0 ? l.split(';') : l.trim().split(/\s+/));
@@ -554,8 +562,8 @@ function leerTexto(txt) {
       if (k === iP) return; var x = num(c); if (isNaN(x)) return;
       if (x >= 1000000 && x < 10000000 && iN < 0) iN = k; else if (x >= 100000 && x < 1000000 && iE < 0) iE = k;
     });
-    if (iE < 0 || iN < 0) { ign++; return; }
-    if (iP < 0) { for (var k = 0; k < Math.min(iE, iN); k++) { var z = num(cel[k]); if (!isNaN(z) && z >= 0 && z < 1000000) iP = k; } }
+    if (iE < 0 || iN < 0) { cel.forEach(function (c, k) { if (/prog/i.test(c)) hdrP = k; }); ign++; return; }
+    if (iP < 0 && hdrP >= 0 && hdrP !== iE && hdrP !== iN) iP = hdrP;
     var pr = iP >= 0 ? parseProg(cel[iP]) : NaN; if (!isNaN(pr)) hayProg = true;
     var cota = null;
     for (var j = Math.max(iE, iN) + 1; j < cel.length; j++) { var c2 = num(cel[j]); if (!isNaN(c2)) { if (c2 > -500 && c2 < 9000) cota = c2; break; } }
@@ -563,7 +571,7 @@ function leerTexto(txt) {
     pts.push([pr, num(cel[iE]), num(cel[iN]), cota]);
   });
   var conProg = pts.filter(function (p) { return !isNaN(p[0]); }).length, sinProg = false;
-  if (hayProg && conProg >= pts.length * 0.5) { ign += pts.length - conProg; pts = pts.filter(function (p) { return !isNaN(p[0]); }); } else sinProg = true;
+  if (hayProg && conProg >= 2) { ign += pts.length - conProg; pts = pts.filter(function (p) { return !isNaN(p[0]); }); } else sinProg = true;
   if (!hayProg || sinProg) {
     var acc = 0; pts.forEach(function (p, i) { if (i) acc += Math.sqrt(Math.pow(p[1] - pts[i - 1][1], 2) + Math.pow(p[2] - pts[i - 1][2], 2)); p[0] = Math.round(acc * 1000) / 1000; });
   } else {
