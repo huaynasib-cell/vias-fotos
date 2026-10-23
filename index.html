@@ -38,7 +38,7 @@ button,input,select,textarea{font-family:inherit;font-size:16px}
 .fila3{display:flex;align-items:center;justify-content:space-between}
 #ult{width:54px;height:54px;border-radius:10px;border:2px solid #fff;background:#222 center/cover no-repeat;cursor:pointer;position:relative}
 #ult span{position:absolute;right:-8px;top:-8px;background:var(--rojo);color:#fff;font-size:12px;font-weight:800;border-radius:10px;padding:1px 6px}
-#disp{width:78px;height:78px;border-radius:50%;border:5px solid #fff;background:var(--rojo);cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.6)}
+#disp{width:62px;height:62px;border-radius:50%;border:4px solid #fff;background:var(--rojo);cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.6)}
 #disp:active{transform:scale(.9)}
 #avisoCam{position:fixed;left:12px;right:12px;top:calc(96px + env(safe-area-inset-top));z-index:6;background:rgba(245,166,35,.92);color:#2a1a00;font-weight:700;font-size:14px;padding:8px 12px;border-radius:10px;text-align:center}
 #bienv{position:fixed;left:16px;right:16px;top:50%;transform:translateY(-50%);z-index:7;background:rgba(22,25,30,.96);border:1px solid var(--borde);border-radius:16px;padding:20px;text-align:center}
@@ -81,6 +81,18 @@ td,th{border-bottom:1px solid var(--borde);padding:5px 4px;text-align:left}
 #visorTxt{padding:12px 14px calc(14px + env(safe-area-inset-bottom));font-size:14px;background:#0d0f12}
 #toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);background:rgba(20,20,20,.92);color:#fff;padding:10px 16px;border-radius:20px;font-weight:700;z-index:50;max-width:90vw;text-align:center;opacity:0;transition:opacity .25s;pointer-events:none}
 #toast.ver{opacity:1}#toast.error{background:var(--rojo)}
+/* horizontal: cámara a pantalla completa y botones a la derecha */
+body.horiz #vid{object-fit:cover}
+@media (orientation: landscape){
+.bottom{left:auto;right:0;top:0;bottom:0;width:100px;padding:0;background:linear-gradient(to left,rgba(0,0,0,.45),transparent)}
+.fila3{position:absolute;right:calc(16px + env(safe-area-inset-right));top:50%;transform:translateY(-50%);flex-direction:column;gap:20px}
+#ult{width:46px;height:46px}
+.chip{position:fixed;left:calc(10px + env(safe-area-inset-left));bottom:10px;margin:0;max-width:38%;padding:6px 12px;font-size:14px}
+.top{right:100px;padding-bottom:10px}
+#pProg{font-size:24px}
+#avisoCam{top:64px;right:110px}
+#toast{bottom:60px}
+}
 </style>
 </head>
 <body>
@@ -149,10 +161,12 @@ td,th{border-bottom:1px solid var(--borde);padding:5px 4px;text-align:left}
     <div class="card">
       <h3>🏷 Sello de la foto</h3>
       <label>Logo (arriba a la derecha)<input type="file" id="aLogo" accept="image/*" onchange="cargarLogo(this)"></label>
+      <label>Tamaño del logo<select id="aLogoTam" onchange="ajuste('logoTam',this.value)"><option value="0.6">Pequeño</option><option value="1">Normal</option><option value="1.4">Grande</option><option value="1.8">Muy grande</option></select></label>
       <img id="logoPrev" class="oculto" alt=""><button class="btn oculto" id="bQuitarLogo" onclick="quitarLogo()">Quitar logo</button>
       <label>Lugar<input id="aLugar" placeholder="Ej.: Azángaro" onchange="ajuste('lugar',this.value)"></label>
       <label>Línea adicional<input id="aExtra" placeholder="Ej.: SUPERVISION" onchange="ajuste('extra',this.value)"></label>
       <label>Proyecto<input id="aProy" placeholder="Ej.: MEJORAMIENTO JILA PURINA (vacío = nombre de la carretera)" onchange="ajuste('proy',this.value)"></label>
+      <label>Progresiva cada<select id="aPaso" onchange="ajuste('paso',this.value);actualizar()"><option value="1">1 m (exacta)</option><option value="5">5 m</option><option value="10">10 m</option><option value="15">15 m</option><option value="20">20 m</option><option value="25">25 m</option><option value="50">50 m</option><option value="100">100 m</option></select></label>
       <label>Tamaño de letra<select id="aTam" onchange="ajuste('tam',this.value)"><option value="0.8">Pequeño</option><option value="1">Normal</option><option value="1.25">Grande</option><option value="1.5">Muy grande</option></select></label>
       <label>Partidas / capas (una por línea)<textarea id="aCapas" rows="6" onchange="guardarCapas(this.value)"></textarea></label>
     </div>
@@ -311,7 +325,8 @@ function proyectar(e, n, eje) {
 /* ======================= GPS ======================= */
 function iniciarGPS() {
   if (!navigator.geolocation) { avisoCam('Este celular no da ubicación'); return; }
-  navigator.geolocation.watchPosition(function (p) {
+  if (S.gps !== undefined && S.gps !== null) return;
+  S.gps = navigator.geolocation.watchPosition(function (p) {
     S.fix = { lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy, alt: p.coords.altitude, t: Date.now() };
     actualizar();
   }, function (e) {
@@ -329,9 +344,19 @@ function ahora() {
   var u = aUTM(f.lat, f.lon, o.zona); o.e = u.e; o.n = u.n;
   if (S.eje.length > 1) {
     var p = proyectar(u.e, u.n, S.eje);
-    if (p) { o.prog = p.prog; o.dist = p.d; o.lado = p.d < 1.5 ? 'Eje' : p.lado; o.cota = p.cota; o.fuera = p.fuera; }
+    if (p) { o.progExacta = p.prog; o.prog = redondeo(p.prog); o.dist = p.d; o.lado = p.d < 1.5 ? 'Eje' : p.lado; o.cota = o.prog === p.prog ? p.cota : cotaEn(o.prog, p.cota); o.fuera = p.fuera; }
   }
   return o;
+}
+/* Progresiva redondeada al intervalo elegido en Ajustes (1 m = exacta) y cota en esa progresiva */
+function pasoProg() { return Number(lsG('paso') || 1); }
+function redondeo(p) { var s = pasoProg(); return s > 1 ? Math.round(p / s) * s : p; }
+function cotaEn(prog, porDefecto) {
+  var e = S.eje;
+  for (var i = 0; i < e.length - 1; i++) if (prog >= e[i][0] && prog <= e[i + 1][0] && e[i][3] !== null && e[i][3] !== undefined && e[i + 1][3] !== null && e[i + 1][3] !== undefined) {
+    var t = (prog - e[i][0]) / ((e[i + 1][0] - e[i][0]) || 1); return e[i][3] + t * (e[i + 1][3] - e[i][3]);
+  }
+  return porDefecto;
 }
 function textoLado(o) { return o.lado === 'Eje' ? 'Sobre el eje' : (o.lado === 'Izq' ? 'Lado izquierdo' : 'Lado derecho') + ' · ' + o.dist.toFixed(1) + ' m'; }
 function actualizar() {
@@ -378,12 +403,16 @@ function pintarSello(o) {
   $('lgo').classList.toggle('oculto', !S.logo); $('marca').classList.toggle('oculto', !!S.logo);
   ajustarMarco();
 }
+function horizontal() { return window.innerWidth > window.innerHeight; }
 function ajustarMarco() {
   var v = $('vid'), vw = v.videoWidth, vh = v.videoHeight, Wd = window.innerWidth, H = window.innerHeight, m = $('marco');
-  if (!vw || !vh) { vw = Wd; vh = H; }
+  document.body.classList.toggle('horiz', horizontal());
+  if (!vw || !vh || horizontal()) { vw = Wd; vh = H; }
   var k = Math.min(Wd / vw, H / vh), w = vw * k, h = vh * k;
   m.style.left = ((Wd - w) / 2) + 'px'; m.style.top = ((H - h) / 2) + 'px'; m.style.width = w + 'px'; m.style.height = h + 'px';
   $('sello').style.fontSize = Math.max(9, Math.min(w, h) / 30 * Number(lsG('tam') || 1)) + 'px';
+  var lg = $('lgo'), lt = Number(lsG('logoTam') || 1);
+  lg.style.maxWidth = 'none'; lg.style.width = (Math.min(w * 0.16, h * 0.22) * lt) + 'px'; lg.style.maxHeight = (h * 0.35) + 'px'; lg.style.height = 'auto';
 }
 window.addEventListener('resize', function () { setTimeout(ajustarMarco, 250); });
 function recortar(x, t, maxw) {
@@ -392,9 +421,15 @@ function recortar(x, t, maxw) {
   return t + '…';
 }
 function estampar(src, l, o) {
-  var w = src.videoWidth || src.width, h = src.videoHeight || src.height, k = Math.min(1, 2560 / Math.max(w, h));
+  var w = src.videoWidth || src.width, h = src.videoHeight || src.height, sx = 0, sy = 0;
+  /* en horizontal la foto es exactamente lo que se ve en la pantalla completa */
+  if (src.videoWidth && horizontal()) {
+    var a = window.innerWidth / window.innerHeight;
+    if (w / h > a) { var nw = h * a; sx = (w - nw) / 2; w = nw; } else { var nh = w / a; sy = (h - nh) / 2; h = nh; }
+  }
+  var k = Math.min(1, 2560 / Math.max(w, h));
   var cw = Math.round(w * k), ch = Math.round(h * k), c = document.createElement('canvas'); c.width = cw; c.height = ch;
-  var x = c.getContext('2d'); x.drawImage(src, 0, 0, cw, ch);
+  var x = c.getContext('2d'); x.drawImage(src, sx, sy, w, h, 0, 0, cw, ch);
   var tam = Number(lsG('tam') || 1), base = Math.max(14, Math.round(Math.min(cw, ch) / 30 * tam)), m = Math.round(base * 0.8);
   var ts = l.map(function () { return base; }), alto = 0;
   ts.forEach(function (t) { alto += t * 1.2; });
@@ -411,8 +446,8 @@ function estampar(src, l, o) {
   });
   x.shadowColor = 'transparent'; x.shadowBlur = 0; x.shadowOffsetX = 0; x.shadowOffsetY = 0;
   if (S.logo) {
-    var lw = Math.min(cw * 0.16, ch * 0.22) * tam, lh = lw * S.logo.height / S.logo.width;
-    if (lh > ch * 0.25) { lh = ch * 0.25; lw = lh * S.logo.width / S.logo.height; }
+    var lw = Math.min(cw * 0.16, ch * 0.22) * Number(lsG('logoTam') || 1), lh = lw * S.logo.height / S.logo.width;
+    if (lh > ch * 0.35) { lh = ch * 0.35; lw = lh * S.logo.width / S.logo.height; }
     x.drawImage(S.logo, cw - m - lw, m, lw, lh);
   }
   return c;
@@ -857,12 +892,24 @@ function botonAtras() {
     if (S.panel) { cerrar(S.panel); return; }
     app.minimizeApp();
   });
-  app.addListener('appStateChange', function (st) { if (st.isActive && !S.cam) encender(); if (st.isActive && S.cam && S.cam.getVideoTracks()[0].readyState === 'ended') encender(); });
+  app.addListener('appStateChange', function (st) { if (st.isActive) reanudar(); else pausar(); });
+}
+/* En segundo plano (app minimizada o pantalla bloqueada) se apagan cámara y GPS para no gastar batería */
+function pausar() {
+  if (S.cam) { S.cam.getTracks().forEach(function (t) { t.stop(); }); S.cam = null; }
+  if (S.gps !== undefined && S.gps !== null) { navigator.geolocation.clearWatch(S.gps); S.gps = null; }
+}
+function reanudar() {
+  if (!S.cam || S.cam.getVideoTracks()[0].readyState === 'ended') encender();
+  iniciarGPS();
+}
+document.addEventListener('visibilitychange', function () { if (document.hidden) pausar(); else reanudar(); });
+function _fin() {
 }
 
 /* ======================= INICIO ======================= */
 (function () {
-  $('aLugar').value = lsG('lugar') || ''; $('aProy').value = lsG('proy') || ''; $('aExtra').value = lsG('extra') || ''; $('aTam').value = lsG('tam') || '1';
+  $('aLugar').value = lsG('lugar') || ''; $('aProy').value = lsG('proy') || ''; $('aExtra').value = lsG('extra') || ''; $('aTam').value = lsG('tam') || '1'; $('aLogoTam').value = lsG('logoTam') || '1'; $('aPaso').value = lsG('paso') || '1';
   if (lsG('zoom')) $('dZoom').value = lsG('zoom');
   pintarCapas(); botonAtras();
   try { document.fonts.load('italic 400 20px Sello'); } catch (e) { }
