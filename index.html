@@ -254,7 +254,11 @@ function num(t) {
 function parseProg(t) {
   t = String(nn(t, '')).replace(/\s/g, '');
   if (!t) return NaN;
-  if (t.indexOf('+') > 0) { var p = t.split('+'); return num(p[0]) * 1000 + num(p[1]); }
+  if (t.indexOf('+') > 0) {
+    var p = t.split('+'), ent = (String(p[1]).split(/[.,]/)[0] || '').length;
+    /* Civil 3D usa estaciones de 100 m (149+50.00 = 14 950 m); el formato peruano usa km (14+950) */
+    return num(p[0]) * (ent === 2 ? 100 : 1000) + num(p[1]);
+  }
   return num(t);
 }
 function aviso(m, err) {
@@ -642,7 +646,7 @@ function leerTexto(txt) {
       if (x >= 1000000 && x < 10000000 && iN < 0) iN = k; else if (x >= 100000 && x < 1000000 && iE < 0) iE = k;
     });
     if (iE < 0 || iN < 0) { cel.forEach(function (c, k) { if (/prog/i.test(c)) hdrP = k; }); ign++; return; }
-    if (iP < 0 && hdrP >= 0 && hdrP !== iE && hdrP !== iN) iP = hdrP;
+    if (hdrP >= 0 && hdrP !== iE && hdrP !== iN && !isNaN(parseProg(cel[hdrP]))) iP = hdrP;
     var pr = iP >= 0 ? parseProg(cel[iP]) : NaN; if (!isNaN(pr)) hayProg = true;
     var cota = null;
     for (var j = Math.max(iE, iN) + 1; j < cel.length; j++) { var c2 = num(cel[j]); if (!isNaN(c2)) { if (c2 > -500 && c2 < 9000) cota = c2; break; } }
