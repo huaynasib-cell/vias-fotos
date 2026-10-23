@@ -16,7 +16,7 @@ jobs:
 
       - name: Descomprimir proyecto
         run: |
-          if [ -f VIAS-Fotos-APK.zip ]; then unzip -o VIAS-Fotos-APK.zip -x '.github/*'; fi
+          if [ -f VIAS-Fotos-APK.zip ]; then unzip -n VIAS-Fotos-APK.zip -x '.github/*'; fi
           ls -la
 
       - name: Ordenar archivos
