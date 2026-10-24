@@ -23,8 +23,8 @@ button,input,select,textarea{font-family:inherit;font-size:16px}
 #vid{position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
 #marco{position:fixed;pointer-events:none}
 #giro{position:absolute;left:50%;top:50%;width:100%;height:100%;transform:translate(-50%,-50%)}
-#sello{position:absolute;right:2.5%;bottom:3%;text-align:right;color:#fff;font-family:'Sello','Source Sans 3',sans-serif;font-style:italic;font-weight:400;line-height:1.2;text-shadow:0 1px 3px #000,0 0 2px #000,0 0 7px rgba(0,0,0,.8);max-width:95%}
-#lgo{position:absolute;right:2.5%;top:3%;max-width:22%;max-height:24%}
+#sello{position:absolute;right:1.2%;bottom:1.5%;text-align:right;color:#fff;font-family:'Sello','Source Sans 3',sans-serif;font-style:italic;font-weight:400;line-height:1.2;text-shadow:0 1px 3px #000,0 0 2px #000,0 0 7px rgba(0,0,0,.8);max-width:62%;overflow-wrap:break-word}
+#lgo{position:absolute;right:1%;top:1.5%;max-width:22%;max-height:24%}
 #marca{position:absolute;right:2.5%;top:3%;background:rgba(208,24,42,.9);color:#fff;font-weight:800;font-size:12px;padding:2px 7px;border-radius:3px}
 #flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .3s;z-index:5}
 #flash.ver{opacity:.9;transition:none}
@@ -456,9 +456,9 @@ function ajustarMarco() {
   var g = giroActual(), gi = $('giro');
   if (g) { var t = w; w = h; h = t; }
   gi.style.width = w + 'px'; gi.style.height = h + 'px'; gi.style.transform = 'translate(-50%,-50%) rotate(' + g + 'deg)';
-  $('sello').style.fontSize = Math.max(9, Math.min(w, h) / 30 * Number(lsG('tam') || 1)) + 'px';
+  $('sello').style.fontSize = Math.max(8, Math.min(w, h) / 36 * Number(lsG('tam') || 1)) + 'px'; $('sello').style.maxWidth = Math.min(w * 0.62, h * 0.9) + 'px';
   var lg = $('lgo'), lt = Number(lsG('logoTam') || 1);
-  lg.style.maxWidth = 'none'; lg.style.width = (Math.min(w * 0.16, h * 0.22) * lt) + 'px'; lg.style.maxHeight = (h * 0.35) + 'px'; lg.style.height = 'auto';
+  lg.style.maxWidth = 'none'; lg.style.width = (Math.min(w * 0.08, h * 0.14) * lt) + 'px'; lg.style.maxHeight = (h * 0.35) + 'px'; lg.style.height = 'auto';
 }
 window.addEventListener('resize', function () { setTimeout(ajustarMarco, 250); });
 function recortar(x, t, maxw) {
@@ -480,23 +480,27 @@ function estampar(src, l, o) {
 }
 /* Dibuja las líneas del sello y el logo sobre un lienzo (foto o cuadro de video) */
 function dibujarSello(x, cw, ch, l) {
-  var tam = Number(lsG('tam') || 1), base = Math.max(14, Math.round(Math.min(cw, ch) / 30 * tam)), m = Math.round(base * 0.8);
-  var ts = l.map(function () { return base; }), alto = 0;
-  ts.forEach(function (t) { alto += t * 1.2; });
-  var g = x.createLinearGradient(0, ch - alto - m * 3, 0, ch); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.35)');
-  x.fillStyle = g; x.fillRect(0, ch - alto - m * 3, cw, alto + m * 3);
-  x.textAlign = 'right'; x.textBaseline = 'top';
-  var y = ch - m - alto;
-  l.forEach(function (t, i) {
-    x.font = 'italic 400 ' + ts[i] + 'px Sello, "Source Sans 3", Arial, sans-serif';
-    var s = recortar(x, t, cw - 2 * m);
-    x.shadowColor = 'rgba(0,0,0,0.9)'; x.shadowBlur = Math.max(3, base * 0.25); x.shadowOffsetX = 1; x.shadowOffsetY = 1;
-    x.fillStyle = '#fff'; x.fillText(s, cw - m, y); x.fillText(s, cw - m, y);
-    y += ts[i] * 1.2;
+  /* Como Timestamp Camera: letra pequeña abajo a la derecha, sin franja oscura; los textos largos pasan a otra línea */
+  var tam = Number(lsG('tam') || 1), base = Math.max(12, Math.round(Math.min(cw, ch) / 36 * tam)), m = Math.round(base * 0.6);
+  x.font = 'italic 400 ' + base + 'px Sello, "Source Sans 3", Arial, sans-serif';
+  var maxw = Math.min(cw * 0.62, ch * 0.9), filas = [];
+  l.forEach(function (t) {
+    if (x.measureText(t).width <= maxw) { filas.push(t); return; }
+    var pal = String(t).split(' '), act = '';
+    pal.forEach(function (w) {
+      var prueba = act ? act + ' ' + w : w;
+      if (act && x.measureText(prueba).width > maxw) { filas.push(act); act = w; } else act = prueba;
+    });
+    if (act) filas.push(recortar(x, act, maxw));
   });
+  x.textAlign = 'right'; x.textBaseline = 'top';
+  var y = ch - m - filas.length * base * 1.2;
+  x.shadowColor = 'rgba(0,0,0,0.9)'; x.shadowBlur = Math.max(3, base * 0.25); x.shadowOffsetX = 1; x.shadowOffsetY = 1;
+  x.fillStyle = '#fff';
+  filas.forEach(function (s) { x.fillText(s, cw - m, y); x.fillText(s, cw - m, y); y += base * 1.2; });
   x.shadowColor = 'transparent'; x.shadowBlur = 0; x.shadowOffsetX = 0; x.shadowOffsetY = 0;
   if (S.logo) {
-    var lw = Math.min(cw * 0.16, ch * 0.22) * Number(lsG('logoTam') || 1), lh = lw * S.logo.height / S.logo.width;
+    var lw = Math.min(cw * 0.08, ch * 0.14) * Number(lsG('logoTam') || 1), lh = lw * S.logo.height / S.logo.width;
     if (lh > ch * 0.35) { lh = ch * 0.35; lw = lh * S.logo.width / S.logo.height; }
     x.drawImage(S.logo, cw - m - lw, m, lw, lh);
   }
