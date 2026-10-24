@@ -22,6 +22,7 @@ button,input,select,textarea{font-family:inherit;font-size:16px}
 /* ---------- cámara ---------- */
 #vid{position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
 #marco{position:fixed;pointer-events:none}
+#giro{position:absolute;left:50%;top:50%;width:100%;height:100%;transform:translate(-50%,-50%)}
 #sello{position:absolute;right:2.5%;bottom:3%;text-align:right;color:#fff;font-family:'Sello','Source Sans 3',sans-serif;font-style:italic;font-weight:400;line-height:1.2;text-shadow:0 1px 3px #000,0 0 2px #000,0 0 7px rgba(0,0,0,.8);max-width:95%}
 #lgo{position:absolute;right:2.5%;top:3%;max-width:22%;max-height:24%}
 #marca{position:absolute;right:2.5%;top:3%;background:rgba(208,24,42,.9);color:#fff;font-weight:800;font-size:12px;padding:2px 7px;border-radius:3px}
@@ -106,7 +107,7 @@ body.horiz #vid{object-fit:cover}
 
 <!-- ================= CÁMARA (pantalla principal) ================= -->
 <video id="vid" playsinline autoplay muted></video>
-<div id="marco"><img id="lgo" class="oculto" alt=""><span id="marca">VÍAS</span><div id="sello"></div></div>
+<div id="marco"><div id="giro"><img id="lgo" class="oculto" alt=""><span id="marca">VÍAS</span><div id="sello"></div></div></div>
 <div id="flash"></div>
 <div class="top">
   <div id="pill" onclick="abrir('pMapa')"><div id="pProg">—</div><div id="pSub">Buscando GPS…</div></div>
@@ -426,12 +427,35 @@ function pintarSello(o) {
   ajustarMarco();
 }
 function horizontal() { return window.innerWidth > window.innerHeight; }
+/* Celular girado de costado aunque la pantalla no gire (rotación automática apagada):
+   90 = parte de arriba del celular hacia la izquierda, -90 = hacia la derecha. El sello y el logo giran solos. */
+function giroActual() { return horizontal() ? 0 : (S.giro || 0); }
+window.addEventListener('devicemotion', function (e) {
+  var g = e.accelerationIncludingGravity; if (!g || g.x === null || g.y === null) return;
+  var ax = g.x, ay = g.y, n = S.giro || 0, nuevo = n;
+  if (Math.abs(ax) > 6 && Math.abs(ax) > Math.abs(ay) * 1.6) nuevo = ax > 0 ? 90 : -90;
+  else if (ay > 6 && ay > Math.abs(ax) * 1.6) nuevo = 0;
+  if (nuevo !== n && !S.rec) { S.giro = nuevo; ajustarMarco(); }
+});
+/* Pasa la imagen recortada a un lienzo; si el celular está de costado la deja derecha (foto horizontal) */
+function lienzoGirado(src, sx, sy, w, h, cw, ch, g) {
+  var c = document.createElement('canvas'), x = c.getContext('2d');
+  c.width = g ? ch : cw; c.height = g ? cw : ch;
+  if (g === 90) { x.translate(0, c.height); x.rotate(-Math.PI / 2); }
+  else if (g === -90) { x.translate(c.width, 0); x.rotate(Math.PI / 2); }
+  x.drawImage(src, sx, sy, w, h, 0, 0, cw, ch);
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  return c;
+}
 function ajustarMarco() {
   var v = $('vid'), vw = v.videoWidth, vh = v.videoHeight, Wd = window.innerWidth, H = window.innerHeight, m = $('marco');
   document.body.classList.toggle('horiz', horizontal());
   if (!vw || !vh || horizontal()) { vw = Wd; vh = H; }
   var k = Math.min(Wd / vw, H / vh), w = vw * k, h = vh * k;
   m.style.left = ((Wd - w) / 2) + 'px'; m.style.top = ((H - h) / 2) + 'px'; m.style.width = w + 'px'; m.style.height = h + 'px';
+  var g = giroActual(), gi = $('giro');
+  if (g) { var t = w; w = h; h = t; }
+  gi.style.width = w + 'px'; gi.style.height = h + 'px'; gi.style.transform = 'translate(-50%,-50%) rotate(' + g + 'deg)';
   $('sello').style.fontSize = Math.max(9, Math.min(w, h) / 30 * Number(lsG('tam') || 1)) + 'px';
   var lg = $('lgo'), lt = Number(lsG('logoTam') || 1);
   lg.style.maxWidth = 'none'; lg.style.width = (Math.min(w * 0.16, h * 0.22) * lt) + 'px'; lg.style.maxHeight = (h * 0.35) + 'px'; lg.style.height = 'auto';
@@ -450,9 +474,8 @@ function estampar(src, l, o) {
     if (w / h > a) { var nw = h * a; sx = (w - nw) / 2; w = nw; } else { var nh = w / a; sy = (h - nh) / 2; h = nh; }
   }
   var k = Math.min(1, 2560 / Math.max(w, h));
-  var cw = Math.round(w * k), ch = Math.round(h * k), c = document.createElement('canvas'); c.width = cw; c.height = ch;
-  var x = c.getContext('2d'); x.drawImage(src, sx, sy, w, h, 0, 0, cw, ch);
-  dibujarSello(x, cw, ch, l);
+  var cw = Math.round(w * k), ch = Math.round(h * k), c = lienzoGirado(src, sx, sy, w, h, cw, ch, src.videoWidth ? giroActual() : 0);
+  dibujarSello(c.getContext('2d'), c.width, c.height, l);
   return c;
 }
 /* Dibuja las líneas del sello y el logo sobre un lienzo (foto o cuadro de video) */
@@ -971,14 +994,16 @@ function iniciarVideo() {
   if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) { aviso('Este celular no permite grabar video aquí', true); return; }
   var w = v.videoWidth, h = v.videoHeight, sx = 0, sy = 0;
   if (horizontal()) { var a = window.innerWidth / window.innerHeight; if (w / h > a) { var nw = h * a; sx = (w - nw) / 2; w = nw; } else { var nh = w / a; sy = (h - nh) / 2; h = nh; } }
-  var k = Math.min(1, 1280 / Math.max(w, h)), cw = Math.round(w * k / 2) * 2, ch = Math.round(h * k / 2) * 2;
-  var c = document.createElement('canvas'); c.width = cw; c.height = ch;
+  var k = Math.min(1, 1280 / Math.max(w, h)), cw = Math.round(w * k / 2) * 2, ch = Math.round(h * k / 2) * 2, g = giroActual();
+  var c = document.createElement('canvas'); c.width = g ? ch : cw; c.height = g ? cw : ch;
   var x = c.getContext('2d'), o0 = ahora();
   var R = S.rec = { c: c, partes: [], inicio: Date.now(), o0: o0, nombre: nombreFoto(o0).replace('VIAS_', 'VIAS_VID_'), capa: $('capa').value };
   function cuadro() {
     if (S.rec !== R) return;
+    if (g === 90) { x.setTransform(0, -1, 1, 0, 0, c.height); } else if (g === -90) { x.setTransform(0, 1, -1, 0, c.width, 0); }
     x.drawImage(v, sx, sy, w, h, 0, 0, cw, ch);
-    dibujarSello(x, cw, ch, lineas(ahora()));
+    x.setTransform(1, 0, 0, 1, 0, 0);
+    dibujarSello(x, c.width, c.height, lineas(ahora()));
     if (!R.mini && R.partes !== null) { R.mini = true; c.toBlob(function (b) { R.mini = b; }, 'image/jpeg', 0.7); }
     R.raf = requestAnimationFrame(cuadro);
   }
