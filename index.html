@@ -40,7 +40,11 @@ button,input,select,textarea{font-family:inherit;font-size:16px}
 #bienv h2 .ic{width:22px;height:22px;vertical-align:-4px}
 .cab button .ic,.vBar button .ic{width:24px;height:24px;margin:auto}
 .bottom{position:fixed;left:0;right:0;bottom:0;z-index:6;padding:30px 16px calc(18px + env(safe-area-inset-bottom));background:linear-gradient(transparent,rgba(0,0,0,.7))}
-.chip{display:block;margin:0 auto 14px;max-width:80%;background:rgba(0,0,0,.55);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:20px;padding:8px 14px;font-weight:700;text-align:center}
+.chips{display:flex;gap:8px;justify-content:center;margin:0 0 14px}
+#chipVia{display:flex;align-items:center;gap:6px;cursor:pointer}
+#chipVia .ic{width:17px;height:17px}
+#chipVia span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip{display:block;margin:0;max-width:48%;min-width:0;background:rgba(0,0,0,.55);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:20px;padding:8px 14px;font-weight:700;text-align:center}
 .fila3{display:flex;align-items:center;justify-content:space-between}
 #ult{width:54px;height:54px;border-radius:10px;border:2px solid #fff;background:#222 center/cover no-repeat;cursor:pointer;position:relative}
 #ult span{position:absolute;right:-8px;top:-8px;background:var(--rojo);color:#fff;font-size:12px;font-weight:800;border-radius:10px;padding:1px 6px}
@@ -56,6 +60,15 @@ button,input,select,textarea{font-family:inherit;font-size:16px}
 #avisoCam{position:fixed;left:12px;right:12px;top:calc(96px + env(safe-area-inset-top));z-index:6;background:rgba(245,166,35,.92);color:#2a1a00;font-weight:700;font-size:14px;padding:8px 12px;border-radius:10px;text-align:center}
 #bienv{position:fixed;left:16px;right:16px;top:50%;transform:translateY(-50%);z-index:7;background:rgba(22,25,30,.96);border:1px solid var(--borde);border-radius:16px;padding:20px;text-align:center}
 #bienv h2{margin:0 0 6px;font-size:22px}
+#hojaFondo{position:fixed;inset:0;z-index:24;background:rgba(0,0,0,.45)}
+#hojaVia{position:fixed;left:0;right:0;bottom:0;z-index:25;background:#16191e;border-top:1px solid var(--borde);border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));max-height:80vh;overflow:auto}
+.hTit{font-weight:800;font-size:17px;margin:0 0 10px}
+.hOp{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:#0f1215;border:1px solid var(--borde);border-radius:12px;padding:12px;margin-bottom:8px;color:#fff;cursor:pointer}
+.hOp b{display:block;font-size:15px}.hOp small{display:block;color:var(--suave);font-size:12px;margin-top:2px}
+.hOp i{flex:none;width:20px;height:20px;border-radius:50%;border:2px solid #6b7480}
+.hOp.sel{border-color:var(--rojo)}.hOp.sel i{border:6px solid var(--rojo)}
+.hProy{margin-top:12px}
+@media (orientation: landscape){#hojaVia{left:auto;width:min(440px,60vw);border-radius:18px 0 0 0;top:0;max-height:none}}
 #bienv p{margin:0 0 14px;color:#cfd6de}
 /* ---------- paneles ---------- */
 .panel{position:fixed;inset:0;z-index:20;background:var(--panel);display:flex;flex-direction:column}
@@ -107,7 +120,8 @@ body.horiz #vid{object-fit:cover}
 .bottom{left:auto;right:0;top:0;bottom:0;width:100px;padding:0;background:linear-gradient(to left,rgba(0,0,0,.45),transparent)}
 .fila3{position:absolute;right:calc(16px + env(safe-area-inset-right));top:50%;transform:translateY(-50%);flex-direction:column;gap:20px}
 #ult{width:46px;height:46px}
-.chip{position:fixed;left:calc(10px + env(safe-area-inset-left));bottom:10px;margin:0;max-width:38%;padding:6px 12px;font-size:14px}
+.chips{position:fixed;left:calc(10px + env(safe-area-inset-left));bottom:10px;margin:0;max-width:62%;justify-content:flex-start}
+.chip{padding:6px 12px;font-size:14px}
 .top{right:100px;padding-bottom:10px}
 #pProg{font-size:24px}
 #avisoCam{top:64px;right:110px}
@@ -132,12 +146,19 @@ body.horiz #vid{object-fit:cover}
 <div id="rec" class="oculto">● 00:00</div>
 <div id="foco"></div>
 <div class="bottom">
-  <select id="capa" class="chip" onchange="guardarCapa(this.value)"></select>
+  <div class="chips"><button id="chipVia" class="chip" onclick="abrirHojaVia()"><svg class="ic"><use href="#i-via"/></svg><span id="chipViaTxt">Sin carretera</span></button><select id="capa" class="chip" onchange="guardarCapa(this.value)"></select></div>
   <div class="fila3">
     <div id="ult" onclick="S.fotos.length ? verFoto(0) : abrir('pGal')"></div>
     <button id="disp" onclick="disparar()" aria-label="Tomar foto"></button>
     <button class="redondo" onclick="abrir('pMapa')" title="Mapa"><svg class="ic"><use href="#i-mapa"/></svg></button>
   </div>
+</div>
+<div id="hojaFondo" class="oculto" onclick="cerrarHojaVia()"></div>
+<div id="hojaVia" class="oculto">
+  <div class="hTit">¿Qué obra va a fotografiar?</div>
+  <div id="hLista"></div>
+  <label class="hProy">Nombre de la obra en el sello<input id="hProy" placeholder="Ej.: MEJORAMIENTO JILA PURINA" onchange="guardarProy(this.value)"></label>
+  <div class="dos"><button class="btn" onclick="cerrarHojaVia();abrir('pAjustes');nuevaVia()"><svg class="ic"><use href="#i-mas"/></svg>Cargar carretera</button><button class="btn prim" onclick="cerrarHojaVia()">Listo</button></div>
 </div>
 <div id="bienv" class="oculto">
   <h2><svg class="ic"><use href="#i-camara"/></svg>Lista para usar</h2>
@@ -197,7 +218,7 @@ body.horiz #vid{object-fit:cover}
       <img id="logoPrev" class="oculto" alt=""><button class="btn oculto" id="bQuitarLogo" onclick="quitarLogo()">Quitar logo</button>
       <label>Lugar<input id="aLugar" placeholder="Ej.: Azángaro" onchange="ajuste('lugar',this.value)"></label>
       <label>Línea adicional<input id="aExtra" placeholder="Ej.: SUPERVISION" onchange="ajuste('extra',this.value)"></label>
-      <label>Proyecto<input id="aProy" placeholder="Ej.: MEJORAMIENTO JILA PURINA (vacío = nombre de la carretera)" onchange="ajuste('proy',this.value)"></label>
+      <label>Proyecto<input id="aProy" placeholder="Ej.: MEJORAMIENTO JILA PURINA (vacío = nombre de la carretera)" onchange="guardarProy(this.value)"></label>
       <label>Progresiva cada<select id="aPaso" onchange="ajuste('paso',this.value);actualizar()"><option value="1">1 m (exacta)</option><option value="5">5 m</option><option value="10">10 m</option><option value="15">15 m</option><option value="20">20 m</option><option value="25">25 m</option><option value="50">50 m</option><option value="100">100 m</option></select></label>
       <label>Resolución de las fotos<select id="aRes" onchange="ajuste('res',this.value);infoRes()"><option value="0">Máxima de la cámara (más lenta)</option><option value="2560">Alta · 2560 px</option><option value="1920">Media · 1920 px (recomendada)</option><option value="1280">Baja · 1280 px (más rápida, pesa poco)</option></select><span class="nota" id="aResInfo"></span></label>
       <label>Tamaño de letra<select id="aTam" onchange="ajuste('tam',this.value)"><option value="0.8">Pequeño</option><option value="1">Normal</option><option value="1.25">Grande</option><option value="1.5">Muy grande</option></select></label>
@@ -427,7 +448,25 @@ function actualizar() {
 }
 
 /* ======================= SELLO ======================= */
-function proyecto() { return lsG('proy') || (S.via ? S.via.nombre : ''); }
+/* Nombre de la obra en el sello: uno por carretera y otro para "Ninguna" (otras obras) */
+function claveProy() { return 'proy_' + (S.via ? S.via.id : '0'); }
+function proyGuardado() { var p = lsG(claveProy()); return p !== null ? p : (S.via ? (lsG('proy') || '') : ''); }
+function proyecto() { return proyGuardado() || (S.via ? S.via.nombre : ''); }
+function guardarProy(t) { lsS(claveProy(), String(t || '').trim()); $('aProy').value = proyGuardado(); $('hProy').value = proyGuardado(); pintarSello(); }
+function abrirHojaVia() { pintarHojaVia(); mostrar('hojaFondo'); mostrar('hojaVia'); }
+function cerrarHojaVia() { ocultar('hojaVia'); ocultar('hojaFondo'); }
+function pintarHojaVia() {
+  var act = S.via ? S.via.id : '';
+  var ops = [{ id: '', t: 'Ninguna — otra obra', s: 'Fotos solo con fecha, coordenadas y altitud (sin progresiva)' }].concat(S.vias.map(function (v) {
+    return { id: v.id, t: v.nombre, s: 'Tramo ' + fmtProg(v.progIni) + ' – ' + fmtProg(v.progFin) + (v.conCota ? ' · con cotas' : '') };
+  }));
+  $('hLista').innerHTML = ops.map(function (o) {
+    return '<button class="hOp' + (o.id === act ? ' sel' : '') + '" onclick="elegirDesdeHoja(\'' + esc(o.id) + '\')"><i></i><span><b>' + esc(o.t) + '</b><small>' + esc(o.s) + '</small></span></button>';
+  }).join('');
+  $('hProy').value = proyGuardado();
+  $('hProy').placeholder = S.via ? 'Vacío = ' + S.via.nombre : 'Ej.: CONSTRUCCIÓN PUENTE …';
+}
+function elegirDesdeHoja(id) { elegirVia(id).then(function () { aviso(S.via ? 'Carretera: ' + S.via.nombre : 'Sin carretera: fotos sin progresiva'); }); }
 function lineas(o) {
   var l = [];
   l.push(fechaSello(o.fecha));
@@ -637,8 +676,8 @@ function cargarVias() {
   return kvG('vias').then(function (l) {
     S.vias = l || [];
     var s = $('sVia'), id = lsG('via');
-    s.innerHTML = S.vias.length ? S.vias.map(function (v) { return '<option value="' + esc(v.id) + '">' + esc(v.nombre) + '</option>'; }).join('') : '<option value="">— Ninguna cargada —</option>';
-    if (!S.vias.some(function (v) { return v.id === id; })) id = S.vias.length ? S.vias[0].id : '';
+    s.innerHTML = '<option value="">— Ninguna (otra obra, sin progresiva) —</option>' + S.vias.map(function (v) { return '<option value="' + esc(v.id) + '">' + esc(v.nombre) + '</option>'; }).join('');
+    if (id !== '' && !S.vias.some(function (v) { return v.id === id; })) id = S.vias.length ? S.vias[0].id : '';
     s.value = id; $('bBorrarVia').disabled = !id;
     return elegirVia(id);
   });
@@ -648,6 +687,9 @@ function elegirVia(id) {
   S.via = null; S.vias.forEach(function (v) { if (v.id === id) S.via = v; });
   S.eje = []; S.ejeLL = [];
   var v = S.via;
+  $('sVia').value = v ? v.id : ''; $('bBorrarVia').disabled = !v;
+  $('chipViaTxt').textContent = v ? v.nombre : 'Sin carretera';
+  $('aProy').value = proyGuardado(); pintarHojaVia();
   $('viaInfo').textContent = v ? 'Tramo ' + fmtProg(v.progIni) + ' – ' + fmtProg(v.progFin) + ' · ' + v.puntos + ' puntos · Zona ' + v.zona + ' S' + (v.conCota ? ' · con cotas' : ' · sin cotas') : 'Cargue el eje desde el Excel del plano.';
   if (!v) { actualizar(); dibujarEje(); estadoMapa(); return Promise.resolve(); }
   return kvG('eje_' + v.id).then(function (p) {
@@ -1217,7 +1259,7 @@ function _fin() {
 
 /* ======================= INICIO ======================= */
 (function () {
-  $('aLugar').value = lsG('lugar') || ''; $('aProy').value = lsG('proy') || ''; $('aExtra').value = lsG('extra') || ''; $('aTam').value = lsG('tam') || '1'; $('aLogoTam').value = lsG('logoTam') || '1'; $('aPaso').value = lsG('paso') || '1'; $('aRes').value = lsG('res') || '1920';
+  $('aLugar').value = lsG('lugar') || ''; $('aProy').value = proyGuardado(); $('aExtra').value = lsG('extra') || ''; $('aTam').value = lsG('tam') || '1'; $('aLogoTam').value = lsG('logoTam') || '1'; $('aPaso').value = lsG('paso') || '1'; $('aRes').value = lsG('res') || '1920';
   if (lsG('zoom')) $('dZoom').value = lsG('zoom');
   pintarCapas(); botonAtras();
   try { document.fonts.load('italic 400 20px Sello'); } catch (e) { }
