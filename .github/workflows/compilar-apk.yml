@@ -38,9 +38,12 @@ jobs:
       - name: Instalar dependencias
         run: npm install
 
+      - name: Nombre de la app (VIAX)
+        run: node -e "const fs=require('fs'),f='capacitor.config.json',c=JSON.parse(fs.readFileSync(f,'utf8'));c.appName='VIAX';fs.writeFileSync(f,JSON.stringify(c,null,2));console.log(c)"
+
       - name: Íconos
         run: |
-          if [ ! -f assets/icon-only.png ]; then node scripts/preparar.js iconos; else echo "Íconos ya incluidos"; fi
+          if [ -f web/icon.svg ]; then node scripts/preparar.js iconos; else echo "Íconos ya incluidos"; fi
 
       - name: Preparar archivos de la app
         run: node scripts/preparar.js web
@@ -53,7 +56,7 @@ jobs:
 
       - name: Íconos de Android
         continue-on-error: true
-        run: npx capacitor-assets generate --android --iconBackgroundColor '#b3121f' --splashBackgroundColor '#b3121f'
+        run: npx capacitor-assets generate --android --iconBackgroundColor '#0e0f11' --splashBackgroundColor '#0e0f11' --splashBackgroundColorDark '#0e0f11'
 
       - name: Copiar app a Android
         run: npx cap sync android
@@ -63,19 +66,19 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
-          cp app/build/outputs/apk/debug/app-debug.apk ../VIAS-Fotos.apk
+          cp app/build/outputs/apk/debug/app-debug.apk ../VIAX.apk
 
       - name: Guardar APK (Actions)
         uses: actions/upload-artifact@v4
         with:
-          name: VIAS-Fotos-apk
-          path: VIAS-Fotos.apk
+          name: VIAX-apk
+          path: VIAX.apk
 
       - name: Publicar APK (enlace fijo para descargar)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk
-          name: VÍAS Fotos — última versión
-          body: "Descargue VIAS-Fotos.apk en el celular Android e instálelo. Compilación ${{ github.run_number }}."
-          files: VIAS-Fotos.apk
+          name: VIAX — última versión
+          body: "Descargue VIAX.apk en el celular Android e instálelo. Compilación ${{ github.run_number }}."
+          files: VIAX.apk
           make_latest: true
