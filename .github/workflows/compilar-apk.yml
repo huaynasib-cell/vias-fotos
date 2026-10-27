@@ -38,8 +38,8 @@ jobs:
       - name: Instalar dependencias
         run: npm install
 
-      - name: Nombre de la app (VIAX)
-        run: node -e "const fs=require('fs'),f='capacitor.config.json',c=JSON.parse(fs.readFileSync(f,'utf8'));c.appName='VIAX';fs.writeFileSync(f,JSON.stringify(c,null,2));console.log(c)"
+      - name: Nombre de la app (VIAX Cámara)
+        run: node -e "const fs=require('fs'),f='capacitor.config.json',c=JSON.parse(fs.readFileSync(f,'utf8'));c.appName='VIAX Cámara';fs.writeFileSync(f,JSON.stringify(c,null,2));console.log(c)"
 
       - name: Íconos
         run: |
@@ -78,7 +78,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk
-          name: VIAX — última versión
+          name: VIAX Cámara — última versión
           body: "Descargue VIAX.apk en el celular Android e instálelo. Compilación ${{ github.run_number }}."
           files: VIAX.apk
           make_latest: true
