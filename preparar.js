@@ -48,7 +48,7 @@ if (fase === 'iconos') {
   const sharp = require('sharp');
   const svg = fs.readFileSync(path.join(R, 'web/icon.svg'));
   const A = path.join(R, 'assets'); fs.mkdirSync(A, { recursive: true });
-  const rojo = { r: 179, g: 18, b: 31, alpha: 1 };
+  const rojo = { r: 14, g: 15, b: 17, alpha: 1 }; /* fondo oscuro de la marca VIAX */
   (async () => {
     await sharp(svg, { density: 300 }).resize(1024, 1024).flatten({ background: rojo }).png().toFile(path.join(A, 'icon-only.png'));
     const chico = await sharp(svg, { density: 300 }).resize(640, 640).png().toBuffer();
