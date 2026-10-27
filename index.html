@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
-<title>VÍAS Cámara</title>
+<title>VIAX</title>
 <link rel="stylesheet" href="lib/fuente/400.css">
 <link rel="stylesheet" href="lib/fuente/600.css">
 <link rel="stylesheet" href="lib/fuente/700.css">
@@ -120,7 +120,7 @@ body.horiz #vid{object-fit:cover}
 
 <!-- ================= CÁMARA (pantalla principal) ================= -->
 <video id="vid" playsinline autoplay muted></video>
-<div id="marco"><div id="giro"><img id="lgo" class="oculto" alt=""><span id="marca">VÍAS</span><div id="sello"></div></div></div>
+<div id="marco"><div id="giro"><img id="lgo" class="oculto" alt=""><span id="marca">VIAX</span><div id="sello"></div></div></div>
 <div id="flash"></div>
 <div class="top">
   <div id="pill" onclick="abrir('pMapa')"><div id="pProg">—</div><div id="pSub">Buscando GPS…</div></div>
@@ -203,7 +203,7 @@ body.horiz #vid{object-fit:cover}
       <label>Tamaño de letra<select id="aTam" onchange="ajuste('tam',this.value)"><option value="0.8">Pequeño</option><option value="1">Normal</option><option value="1.25">Grande</option><option value="1.5">Muy grande</option></select></label>
       <label>Partidas / capas (una por línea)<textarea id="aCapas" rows="6" onchange="guardarCapas(this.value)"></textarea></label>
     </div>
-    <p class="nota" style="text-align:center">Las fotos se guardan en la galería del celular, álbum <b>VIAS Fotos</b>.</p>
+    <p class="nota" style="text-align:center">Las fotos se guardan en la galería del celular, álbum <b>VIAX Fotos</b>.</p>
   </div>
 </div>
 
@@ -556,7 +556,7 @@ function disparar() {
 }
 function nombreFoto(o) {
   var d = o.fecha, t = d.getFullYear() + dos(d.getMonth() + 1) + dos(d.getDate()) + '_' + dos(d.getHours()) + dos(d.getMinutes()) + dos(d.getSeconds());
-  return 'VIAS_' + t + (o.prog !== null ? '_' + fmtProg(o.prog).replace('+', '-') : '');
+  return 'VIAX_' + t + (o.prog !== null ? '_' + fmtProg(o.prog).replace('+', '-') : '');
 }
 /* Cada foto entra a una cola y se guarda en segundo plano: se puede seguir disparando sin esperar */
 function guardarFoto(c, o) {
@@ -577,7 +577,7 @@ function guardarUna(c, o) {
     c.toBlob(function (blob) {
       var ancho = c.width, alto = c.height; c.width = c.height = 1;
       guardarGaleria(blob, nombre).then(function (res) {
-        aviso(res.ok ? '✔ ' + (o.prog !== null ? fmtProg(o.prog) : 'Foto') + ' guardada' : 'Foto guardada en Documentos / VIAS Fotos');
+        aviso(res.ok ? '✔ ' + (o.prog !== null ? fmtProg(o.prog) : 'Foto') + ' guardada' : 'Foto guardada en Documentos / VIAX Fotos');
         m.toBlob(function (mini) {
           var r = {
             uid: nombre + '_' + Math.floor(Math.random() * 1000), archivo: nombre + '.jpg', fecha: fechaCorta(o.fecha), via: S.via ? S.via.nombre : '',
@@ -593,11 +593,11 @@ function guardarUna(c, o) {
     }, 'image/jpeg', 0.88);
   });
 }
-/* Galería del celular, álbum VIAS Fotos */
+/* Galería del celular, álbum VIAX Fotos */
 var ALBUM = null;
 function albumId(md) {
   if (ALBUM) return Promise.resolve(ALBUM);
-  var nom = 'VIAS Fotos';
+  var nom = 'VIAX Fotos';
   return md.getAlbumsPath().then(function (r) {
     return md.createAlbum({ name: nom }).catch(function () { }).then(function () { ALBUM = r.path + '/' + nom; return ALBUM; });
   }).catch(function () {
@@ -617,7 +617,7 @@ function guardarGaleria(blob, nombre) {
   return blobB64(blob).then(function (b64) {
     var p = md ? albumId(md).then(function (id) { return md.savePhoto({ path: 'data:image/jpeg;base64,' + b64, albumIdentifier: id, fileName: nombre }); }) : Promise.reject();
     return p.then(function (r) { return { ok: true, ruta: (r && (r.filePath || r.path)) || '' }; }).catch(function () {
-      return fs.writeFile({ path: 'VIAS Fotos/' + nombre + '.jpg', data: b64, directory: 'DOCUMENTS', recursive: true }).then(function (r) { return { ok: false, ruta: r.uri }; });
+      return fs.writeFile({ path: 'VIAX Fotos/' + nombre + '.jpg', data: b64, directory: 'DOCUMENTS', recursive: true }).then(function (r) { return { ok: false, ruta: r.uri }; });
     });
   });
 }
@@ -928,7 +928,7 @@ function cargarFotos() {
   });
 }
 function pintarGaleria() {
-  $('galInfo').textContent = S.fotos.length ? S.fotos.length + ' fotos tomadas con la app. Los originales están en la galería del celular, álbum VIAS Fotos.' : 'Aún no hay fotos.';
+  $('galInfo').textContent = S.fotos.length ? S.fotos.length + ' fotos tomadas con la app. Los originales están en la galería del celular, álbum VIAX Fotos.' : 'Aún no hay fotos.';
   $('grilla').innerHTML = S.fotos.map(function (f, i) {
     return '<div style="background-image:url(' + f.url + ')" onclick="verFoto(' + i + ')"><span>' + esc(f.progTxt || f.fecha.slice(0, 10)) + '</span></div>';
   }).join('');
@@ -940,7 +940,7 @@ function verFoto(i) {
   $('visorTxt').innerHTML = '<b>' + esc(f.progTxt ? 'Prog. ' + f.progTxt : (f.tipo === 'video' ? 'Video' : 'Foto')) + '</b>' + (f.cota !== '' ? ' · Cota ' + fmtCota(f.cota) : '') +
     '<br>' + esc(f.fecha) + (f.capa ? ' · ' + esc(f.capa) : '') + (f.via ? '<br>' + esc(f.via) : '') +
     (f.este !== '' ? '<br>' + esc(f.zona) + ' ' + f.este + ' E · ' + f.norte + ' N' : '') + (f.ancho ? '<br>' + f.ancho + ' × ' + f.alto + ' px' : '') +
-    '<br><span style="color:#9aa4b0">' + esc(f.archivo) + ' · Galería del celular, álbum VIAS Fotos</span>';
+    '<br><span style="color:#9aa4b0">' + esc(f.archivo) + ' · Galería del celular, álbum VIAX Fotos</span>';
   mostrar('visor');
 }
 function pasarFoto(d) { if (S.fotos[S.vi + d]) verFoto(S.vi + d); }
@@ -1013,15 +1013,15 @@ function excel() {
   ws['!cols'] = [5, 30, 16, 24, 10, 6, 10, 12, 18, 14, 6, 12, 13, 11, 11, 10, 10].map(function (w) { return { wch: w }; });
   var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Fotos');
   var d = new Date();
-  guardarExcel(wb, 'Fotos_VIAS_' + d.getFullYear() + dos(d.getMonth() + 1) + dos(d.getDate()) + '.xlsx');
+  guardarExcel(wb, 'Fotos_VIAX_' + d.getFullYear() + dos(d.getMonth() + 1) + dos(d.getDate()) + '.xlsx');
 }
-/* Guarda un Excel en Documentos / VIAS Fotos y ofrece enviarlo (WhatsApp, correo…) */
+/* Guarda un Excel en Documentos / VIAX Fotos y ofrece enviarlo (WhatsApp, correo…) */
 function guardarExcel(wb, nom) {
   var fs = plugin('Filesystem');
   if (!fs) { XLSX.writeFile(wb, nom); return; }
   var b64 = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
-  fs.writeFile({ path: 'VIAS Fotos/' + nom, data: b64, directory: 'DOCUMENTS', recursive: true }).then(function (r) {
-    aviso(nom + ' guardado en Documentos / VIAS Fotos');
+  fs.writeFile({ path: 'VIAX Fotos/' + nom, data: b64, directory: 'DOCUMENTS', recursive: true }).then(function (r) {
+    aviso(nom + ' guardado en Documentos / VIAX Fotos');
     var sh = plugin('Share'); if (sh) return sh.share({ title: nom, url: r.uri, dialogTitle: 'Enviar ' + nom });
   }).catch(function (e) { aviso('No se pudo guardar el Excel', true); });
 }
@@ -1038,7 +1038,7 @@ function plantilla() {
   ]);
   ws['!cols'] = [{ wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 12 }];
   var ins = XLSX.utils.aoa_to_sheet([
-    ['CÓMO PREPARAR SU EXCEL DEL EJE PARA VÍAS CÁMARA'], [''],
+    ['CÓMO PREPARAR SU EXCEL DEL EJE PARA VIAX'], [''],
     ['1. La hoja del eje debe tener 4 columnas: PROGRESIVA | ESTE | NORTE | COTA (o ELEVACION).'],
     ['2. Fila de títulos arriba; los datos empiezan justo debajo. Pueden empezar en la columna A o B.'],
     ['3. PROGRESIVA escrita como 0+000, 0+010, 0+020… o en metros (0, 10, 20…).'],
@@ -1051,7 +1051,7 @@ function plantilla() {
   ]);
   ins['!cols'] = [{ wch: 110 }];
   var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'EJE'); XLSX.utils.book_append_sheet(wb, ins, 'COMO_PREPARAR');
-  guardarExcel(wb, 'Ejemplo_Eje_VIAS.xlsx');
+  guardarExcel(wb, 'Ejemplo_Eje_VIAX.xlsx');
 }
 
 /* ======================= AJUSTES / LOGO ======================= */
@@ -1109,7 +1109,7 @@ function iniciarVideo() {
   var k = Math.min(1, 1280 / Math.max(w, h)), cw = Math.round(w * k / 2) * 2, ch = Math.round(h * k / 2) * 2, g = giroActual();
   var c = document.createElement('canvas'); c.width = g ? ch : cw; c.height = g ? cw : ch;
   var x = c.getContext('2d'), o0 = ahora();
-  var R = S.rec = { c: c, partes: [], inicio: Date.now(), o0: o0, nombre: nombreFoto(o0).replace('VIAS_', 'VIAS_VID_'), capa: $('capa').value };
+  var R = S.rec = { c: c, partes: [], inicio: Date.now(), o0: o0, nombre: nombreFoto(o0).replace('VIAX_', 'VIAX_VID_'), capa: $('capa').value };
   function cuadro() {
     if (S.rec !== R) return;
     if (g === 90) { x.setTransform(0, -1, 1, 0, 0, c.height); } else if (g === -90) { x.setTransform(0, 1, -1, 0, c.width, 0); }
@@ -1147,7 +1147,7 @@ function guardarVideo(R) {
   if (R.audio) R.audio.getTracks().forEach(function (t) { t.stop(); });
   var blob = new Blob(R.partes, { type: R.mime }), nombre = R.nombre + '.' + R.ext, o = R.o0;
   aviso('Guardando video…');
-  guardarVideoGaleria(blob, nombre).then(function (ok) { aviso(ok ? '✔ Video guardado' : 'Video guardado en Documentos / VIAS Fotos'); })
+  guardarVideoGaleria(blob, nombre).then(function (ok) { aviso(ok ? '✔ Video guardado' : 'Video guardado en Documentos / VIAX Fotos'); })
     .catch(function () { aviso('No se pudo guardar el video', true); });
   var mini = (R.mini && R.mini.size) ? R.mini : blob;
   var r = { uid: R.nombre + '_' + Math.floor(Math.random() * 1000), archivo: nombre, tipo: 'video', fecha: fechaCorta(o.fecha), via: S.via ? S.via.nombre : '',
@@ -1159,14 +1159,14 @@ function guardarVideo(R) {
   if (r.mini === blob) { r.mini = new Blob([], { type: 'image/jpeg' }); }
   tx('fotos', 'readwrite', function (s) { return s.put(r); }).then(cargarFotos);
 }
-/* Escribe el video por partes (no se cuelga con videos largos) y lo pasa a la galería, álbum VIAS Fotos */
+/* Escribe el video por partes (no se cuelga con videos largos) y lo pasa a la galería, álbum VIAX Fotos */
 function guardarVideoGaleria(blob, nombre) {
   var fs = plugin('Filesystem'), md = plugin('Media');
   if (!fs) {
     try { var u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = nombre; document.body.appendChild(a); a.click(); a.remove(); } catch (e) { }
     return Promise.resolve(true);
   }
-  var ruta = 'VIAS Fotos/' + nombre, TROZO = 3 * 1024 * 1024, pos = 0, primero = true;
+  var ruta = 'VIAX Fotos/' + nombre, TROZO = 3 * 1024 * 1024, pos = 0, primero = true;
   function sig() {
     if (pos >= blob.size) return Promise.resolve();
     var parte = blob.slice(pos, pos + TROZO); pos += TROZO;
